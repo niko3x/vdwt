@@ -12,6 +12,21 @@
 
 ![Bike ride at 731 kbit/s: VDWT against hardware HEVC](media/bike_731k.gif)
 
+## Compression against encode speed
+
+Every VDWT tier against every x265 preset (`--tune psnr`, all tools on, no placebo) and the three
+hardware HEVC speed levels, as bitrate saving relative to x265 `medium` (higher is better) over
+encode time per frame. Hardware HEVC needs 1.7× to 3× x265 medium's bits, so its points sit
+below the chart edge with their values.
+
+![Motocross FPV: compression against encode time, VDWT, x265 and hardware HEVC](media/pareto_moto.png)
+
+![Bike ride: compression against encode time, VDWT, x265 and hardware HEVC](media/pareto_bike.png)
+
+On the motocross clip every VDWT tier, even `realtime`, beats x265 `veryslow` while encoding
+10–40× faster. On the bike ride VDWT matches x265 `medium` to `fast` at similar speed; here
+`heavy` is the best tier.
+
 > [!IMPORTANT]
 > **The codec is fully available for use today as prebuilt binaries. The source code will be
 > open-sourced soon.**
