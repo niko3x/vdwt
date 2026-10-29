@@ -21,12 +21,6 @@ below the chart edge with their values.
 
 ![Motocross FPV: compression against encode time, VDWT, x265 and hardware HEVC](media/pareto_moto.png)
 
-![Bike ride: compression against encode time, VDWT, x265 and hardware HEVC](media/pareto_bike.png)
-
-On the motocross clip every VDWT tier, even `realtime`, beats x265 `veryslow` while encoding
-6 to 40 times faster. On the bike ride VDWT `medium` and `heavy` edge out x265 `medium` (2 to 4%
-fewer bits) at the same or lower encode time; x265 `slow` and slower presets pull ahead there,
-and `heavy` is VDWT's best tier on this clip.
 
 ### Against the GPU's hardware encoders
 
