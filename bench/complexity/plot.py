@@ -201,6 +201,7 @@ PSNR_GROUPS = {
     "xiph_talking": ("Video-call talking heads (public Xiph clips)", "{n} clips: vidyo1, vidyo3, vidyo4",
                      (-100, 40)),
     "pexels_moto": ("Motocross FPV drone (Pexels, Eno Eltora)", "1080p60 FPV footage", (-60, 40)),
+    "pexels_moto_vmaf": ("Motocross FPV drone (Pexels, Eno Eltora): VMAF", "1080p60 FPV footage", (-80, 60)),
     "pexels_bike": ("Bike ride (Pexels, Adrián Vizuete Moreno)", "1080p60 first-person ride", (-60, 40)),
     "xiph_general": ("General content (public Xiph clips)", "{n} clips: parkrun, shields, crowd_run, "
                      "park_joy", (-140, 40)),
@@ -239,9 +240,14 @@ def psnr_config(group, kind, metric="PSNR-Y"):
         title=title if group.startswith("pexels") else f"{title}, no restrictions",
         subtitle=[clips_line + f", 20 frames{'' if group.startswith('pexels') else ' each, 720p'}; "
                   f"{metric} BD-rate against x265 medium",
+                  ("x265 4.1 --tune psnr, all tools, no placebo; VDWT tiers at defaults; both on an Orange Pi 3B; "
+                   f"fixed qp {qps}; Intel hardware HEVC CQP")
+                  if group.endswith("_vmaf") else
                   "x265 4.3 --tune psnr with every tool (B-frames, lookahead, cutree; no placebo); VDWT tiers at "
                   f"their defaults; fixed qp {qps}; single thread"],
-        xlabel=("Encode" if kind == "encode" else "Decode") + " CPU time per frame (ms, log scale; " +
+        xlabel=("Encode time per frame (ms, log; 1080p; VDWT, x265: one Cortex-A55 core; "
+                "hardware HEVC: laptop wall time)") if group.endswith("_vmaf") else
+               ("Encode" if kind == "encode" else "Decode") + " CPU time per frame (ms, log scale; " +
                ("1080p" if group.startswith("pexels") else "720p") + ", single thread, x86 laptop" + ("; x265 streams decoded by FFmpeg)" if kind == "decode"
                                                      else "; hardware HEVC: wall time)"),
         heading=f"Compression vs {kind} complexity",
@@ -270,6 +276,8 @@ def psnr_families(kind, group=None):
                          "vdwt-medium": ("medium", -55, UP), "vdwt-heavy": ("heavy", 35, UP),
                          "vdwt-ultraheavy": ("ultraheavy", 30, UP)})
         xl = dict(xl, **{"x265-ultrafast": ("ultrafast", -100, 10)})
+    if group == "pexels_moto_vmaf":
+        vl = dict(vl, **{"vdwt-medium": ("medium", -40, UP), "vdwt-heavy": ("heavy", 10, UP), "vdwt-ultraheavy": ("ultraheavy", 30, 48)})
     if group == "pexels_bike":
         xl = dict(xl, **{"x265-fast": ("fast", -10, 48)})
     if kind == "decode":
@@ -294,9 +302,10 @@ def psnr_families(kind, group=None):
 def main():
     global REFERENCE, FAMILIES, Y_RANGE
     cfg = None
-    if sys.argv[1] in ("--psnr", "--yuv611"):
+    if sys.argv[1] in ("--psnr", "--yuv611", "--vmaf"):
         group, kind, rd_path, out = sys.argv[2:6]
-        cfg = psnr_config(group, kind, "PSNR-Y" if sys.argv[1] == "--psnr" else "YUV-PSNR (6:1:1)")
+        cfg = psnr_config(group, kind, {"--psnr": "PSNR-Y", "--yuv611": "YUV-PSNR (6:1:1)",
+                                        "--vmaf": "VMAF (vmaf_v0.6.1)"}[sys.argv[1]])
         REFERENCE, FAMILIES, Y_RANGE = cfg["reference"], cfg["families"], cfg["yrange"]
         rd = load_rd(rd_path)
         col = 5 if kind == "encode" else 6

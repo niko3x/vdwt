@@ -47,7 +47,7 @@ COMMANDS:
         --frame-log writes per-frame type, size, qp, motion and rate-control state.
         IN is a .y4m file (4:2:0, 4:2:2, 4:4:4 or mono, 8-16 bits; coded as 8-bit 4:2:0),
         `-` for Y4M on standard input, or any other video file ffmpeg can read.
-    decode IN.vdwt OUT.y4m [--threads N] [--postfilter auto]
+    decode IN.vdwt OUT.y4m [--threads N] [--postfilter auto] [--frame-times TIMES.csv]
         Decode a stream to 8-bit 4:2:0 Y4M; OUT `-` writes it to standard output. --sharpen applies the optional display post-filter (luma unsharp mask;
         it does not change the bitstream or any reference picture).
     rd IN.y4m [--qp 16,24,32,40,48] [--frames 10] [CODEC OPTIONS]
@@ -1149,7 +1149,7 @@ fn encode(mut args: Args) -> Result<(), String> {
                 "frame,type,bytes,qp,psnr_y,pred_psnr_y,motion_bytes,filter,refined_nodes,intra_nodes,patches,inliers,\
                  gm0x,gm0y,gm1x,gm1y,gm2x,gm2y,gm3x,gm3y,\
                  link_kbps,target_bits,cap_bits,estimate_bits,queue_bits,delay_frames,dropped_bands,postfilter,\
-                 header_bytes,layout_bytes,loop_bytes\n",
+                 header_bytes,layout_bytes,loop_bytes,encode_ms\n",
             );
             f.reserve(frames.len() * 120);
             Some((p.clone(), f))
@@ -1212,7 +1212,8 @@ fn encode(mut args: Args) -> Result<(), String> {
                 .map_err(|e| e.to_string())?;
             vec![(0, stats)]
         };
-        elapsed += start.elapsed();
+        let step_time = start.elapsed();
+        elapsed += step_time;
         for (local, stats) in coded {
             let i = step.start + local;
             let frame = &frames[i];
@@ -1276,7 +1277,7 @@ fn encode(mut args: Args) -> Result<(), String> {
                     .flat_map(|c| c.iter().map(|v| v.to_string()))
                     .collect();
                 f.push_str(&format!(
-                    "{i},{kind},{},{},{:.3},{},{},{},{},{},{},{},{},{rate_cols},{},{},{},{},{}\n",
+                    "{i},{kind},{},{},{:.3},{},{},{},{},{},{},{},{},{rate_cols},{},{},{},{},{},{:.3}\n",
                     stats.bytes,
                     stats.qp,
                     p.y,
@@ -1301,6 +1302,8 @@ fn encode(mut args: Args) -> Result<(), String> {
                     stats.header_bytes,
                     stats.layout_bytes,
                     stats.loop_bytes,
+                    // A group of frames is coded in one call: its time is on every frame of it.
+                    ms(step_time),
                 ));
             }
             // The recon file mirrors what a decoder outputs: skipped frames produce nothing.
@@ -1542,6 +1545,7 @@ fn post_filter(args: &mut Args) -> Result<PostFilter, String> {
 fn decode(mut args: Args) -> Result<(), String> {
     let threads = threads(&mut args)?;
     let post = post_filter(&mut args)?;
+    let times_path = args.string("frame-times");
     args.finish(2)?;
     let (input, output) = (&args.positional[0], &args.positional[1]);
     let data = fs::read(input).map_err(|e| format!("{input}: {e}"))?;
@@ -1592,6 +1596,7 @@ fn decode(mut args: Args) -> Result<(), String> {
         }
     };
     let mut header_state: Option<bitstream::FrameHeaderState> = None;
+    let mut frame_times = Vec::with_capacity(payloads.len());
     for (i, payload) in payloads.iter().enumerate() {
         let header = bitstream::FrameHeader::parse_with(
             &mut bitstream::ByteReader::new(payload),
@@ -1613,7 +1618,9 @@ fn decode(mut args: Args) -> Result<(), String> {
         let frame = decoder
             .decode_frame(payload)
             .map_err(|e| format!("frame {i}: {e}"))?;
-        elapsed += start.elapsed();
+        let frame_time = start.elapsed();
+        elapsed += frame_time;
+        frame_times.push(ms(frame_time));
         want.get_or_insert(num);
         let filtered = post.apply(frame, &mut display, signalled);
         let shown: &Frame = if filtered { &display } else { frame };
@@ -1635,6 +1642,13 @@ fn decode(mut args: Args) -> Result<(), String> {
     }
     flush(&mut writer, &mut waiting, &mut want, &mut spare, true)?;
     writer.finish().map_err(|e| e.to_string())?;
+    if let Some(p) = &times_path {
+        let mut csv = String::from("frame,decode_ms\n");
+        for (i, t) in frame_times.iter().enumerate() {
+            csv.push_str(&format!("{i},{t:.3}\n"));
+        }
+        fs::write(p, csv).map_err(|e| format!("{p}: {e}"))?;
+    }
     let summary = format!(
         "decoded {} frames {}x{}: {:.2} ms/frame ({threads} thread{})\n{}",
         payloads.len(),

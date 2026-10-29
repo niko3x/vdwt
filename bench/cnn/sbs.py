@@ -116,8 +116,9 @@ def plain(src_p, rec_p, vdwt_p, out, fps):
     os.remove(dec)
     print(f"VDWT ultraheavy       {kbps:6.0f} kbps  {pv:.2f} dB (6:1:1)")
     print(f"HEVC hardware (VAAPI) {hevc_kbps:6.0f} kbps  {ph:.2f} dB")
-    h = int(next(t for t in open(src_p, "rb").readline().split() if t.startswith(b"H"))[1:])
-    font = f"fontsize={30 * h // 720}:fontcolor=white:box=1:boxcolor=black@0.6:boxborderw=8:x=20:y=20"
+    head = open(src_p, "rb").readline().split()
+    w, h = (int(next(t for t in head if t.startswith(k))[1:]) for k in (b"W", b"H"))
+    font = f"fontsize={30 * min(w, h) // 720}:fontcolor=white:box=1:boxcolor=black@0.6:boxborderw=8:x=20:y=20"
     fc = (f"[0:v]drawtext=text='VDWT ultraheavy  {kbps:.0f} kbps  {pv:.2f} dB':{font}[a];"
           f"[1:v]drawtext=text='HEVC hardware  {hevc_kbps:.0f} kbps  {ph:.2f} dB':{font}[b];[a][b]hstack")
     subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-i", rec_p, "-i", hevc, "-filter_complex", fc,
