@@ -87,8 +87,10 @@ Prebuilt binaries are attached to each [release](../../releases):
 |---|---|
 | Linux x86_64 (AVX2 or portable) | `vdwt-<version>-x86_64-linux.tar.gz` |
 | Linux ARM64 (NEON; Raspberry Pi 4/5, Orange Pi, Jetson, …) | `vdwt-<version>-aarch64-linux.tar.gz` |
+| Windows 10/11 x86_64 (AVX2 or portable) | `vdwt-<version>-x86_64-windows.zip` |
 
-The Linux binaries are static and need no libraries. Windows and macOS builds are planned.
+The binaries need no extra libraries. Streams and decoded pictures are identical on every
+platform. macOS builds are planned.
 
 After unpacking, check that the binary works on your CPU:
 
