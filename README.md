@@ -1,16 +1,19 @@
 # VDWT
 
+## Motocross FPV drone · 1080p60 · 600 kbit/s
+
+**Left: VDWT `ultraheavy` 38.97 dB · Right: hardware HEVC 35.38 dB**
+
 ![Motocross FPV at 600 kbit/s: VDWT against hardware HEVC](media/motocross_600k.gif)
 
-<sub>Motocross FPV drone, 1080p60 at 600 kbit/s. Left: VDWT `ultraheavy`, 38.97 dB. Right: hardware
-HEVC, 35.38 dB.</sub>
+## Bike ride · 1080p60 · 731 kbit/s (equal bitrate)
+
+**Left: VDWT `ultraheavy` 32.62 dB · Right: hardware HEVC 30.47 dB**
 
 ![Bike ride at 731 kbit/s: VDWT against hardware HEVC](media/bike_731k.gif)
 
-<sub>Bike ride, 1080p60 at an equal 731 kbit/s. Left: VDWT `ultraheavy`, 32.62 dB. Right: hardware
-HEVC, 30.47 dB.</sub>
-
-> **The codec is fully available for use today** as prebuilt binaries. **The source code will be
+> [!IMPORTANT]
+> **The codec is fully available for use today as prebuilt binaries. The source code will be
 > open-sourced soon.**
 
 VDWT is a low-latency wavelet video codec for drone downlinks, robotics and other live video on
