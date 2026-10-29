@@ -24,8 +24,9 @@ below the chart edge with their values.
 ![Bike ride: compression against encode time, VDWT, x265 and hardware HEVC](media/pareto_bike.png)
 
 On the motocross clip every VDWT tier, even `realtime`, beats x265 `veryslow` while encoding
-10–40× faster. On the bike ride VDWT matches x265 `medium` to `fast` at similar speed; here
-`heavy` is the best tier.
+6 to 40 times faster. On the bike ride VDWT `medium` and `heavy` edge out x265 `medium` (2 to 4%
+fewer bits) at the same or lower encode time; x265 `slow` and slower presets pull ahead there,
+and `heavy` is VDWT's best tier on this clip.
 
 > [!IMPORTANT]
 > **The codec is fully available for use today as prebuilt binaries. The source code will be
