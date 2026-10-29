@@ -1,9 +1,14 @@
 # VDWT
 
-![VDWT ultraheavy against hardware HEVC at 600 kbit/s, 1080p60 motocross FPV footage](media/hero_motocross_600k.jpg)
+![Motocross FPV at 600 kbit/s: VDWT against hardware HEVC](media/motocross_600k.gif)
 
-<sub>1080p60 FPV footage at 600 kbit/s. Left: VDWT `ultraheavy`, 38.97 dB. Right: hardware HEVC,
-35.38 dB.</sub>
+<sub>Motocross FPV drone, 1080p60 at 600 kbit/s. Left: VDWT `ultraheavy`, 38.97 dB. Right: hardware
+HEVC, 35.38 dB.</sub>
+
+![Bike ride at 731 kbit/s: VDWT against hardware HEVC](media/bike_731k.gif)
+
+<sub>Bike ride, 1080p60 at an equal 731 kbit/s. Left: VDWT `ultraheavy`, 32.62 dB. Right: hardware
+HEVC, 30.47 dB.</sub>
 
 > **The codec is fully available for use today** as prebuilt binaries. **The source code will be
 > open-sourced soon.**
@@ -119,18 +124,8 @@ bitrate. Quality is YUV-PSNR 6:1:1, (6·Y + U + V) / 8, averaged over all frames
 | Bike | 731 kbit/s | 32.62 dB | 30.47 dB | **+2.15 dB** |
 
 At 600 kbit/s the hardware encoder could not go below about 730 kbit/s on the bike clip, so
-that row compares both at 731 kbit/s.
-
-**Motocross FPV drone, 600 kbit/s** (left VDWT, right hardware HEVC):
-
-![Motocross FPV at 600 kbit/s: VDWT against hardware HEVC](media/motocross_600k.gif)
-
-**Bike, 731 kbit/s, equal bitrate** (left VDWT, right hardware HEVC):
-
-![Bike ride at 731 kbit/s: VDWT against hardware HEVC](media/bike_731k.gif)
-
-The GIFs are 3-second excerpts at 25 fps; the full-length 60 fps side-by-side videos are attached
-to the release.
+that row compares both at 731 kbit/s. The GIFs at the top are 3-second excerpts at 25 fps; the
+full-length 60 fps side-by-side videos are attached to the release.
 Benchmarks against software encoders (x265) on public test sequences will follow.
 
 Footage: [Motocross FPV drone](https://www.pexels.com/video/motocross-fpv-drone-18326007/) by
