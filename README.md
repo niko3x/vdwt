@@ -16,10 +16,15 @@
 > **The codec is fully available for use today as prebuilt binaries. The source code will be
 > open-sourced soon.**
 
-VDWT is a low-latency wavelet video codec for drone downlinks, robotics and other live video on
-small ARM devices. It codes whole frames with an integer wavelet transform and predicts motion
-with a smooth motion mesh: there are no blocks anywhere in the pipeline, so no blocking
-artifacts, and every stage runs in parallel.
+VDWT is a **hardware-aware, fully parallel video codec** built to compete with
+hardware-accelerated codecs such as HEVC — and to beat them on efficiency. It is designed from
+the ground up to run fast on small CPUs and to map directly onto GPUs, NPUs, FPGAs and ASICs,
+for live video where every bit and every millisecond counts: drone downlinks, robotics and
+embedded cameras.
+
+Under the hood it is a block-free wavelet codec: an integer wavelet transform for whole frames
+and a smooth motion mesh for prediction, so there are no blocking artifacts and every stage runs
+in parallel.
 
 > **Beta.** The bitstream format may still change between beta versions, so keep your source
 > footage rather than archiving only `.vdwt` streams.
