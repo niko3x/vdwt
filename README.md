@@ -28,6 +28,26 @@ On the motocross clip every VDWT tier, even `realtime`, beats x265 `veryslow` wh
 fewer bits) at the same or lower encode time; x265 `slow` and slower presets pull ahead there,
 and `heavy` is VDWT's best tier on this clip.
 
+### Against the GPU's hardware encoders
+
+At the same quality, VDWT needs **63 to 67% fewer bits than hardware HEVC** on the motocross
+clip (realtime to ultraheavy, against the encoder's best level, TU1).
+
+On a longer run of the bike ride (120 frames), VDWT against Intel's hardware HEVC and H.264:
+
+![Bike ride, 120 frames: VDWT against hardware HEVC and H.264](media/pareto_bike_hw.png)
+
+| VDWT tier | Fewer bits than hardware HEVC (TU1) | Fewer bits than hardware H.264 (TU1) |
+|---|---|---|
+| realtime | 41% | 50% |
+| light | 46% | 54% |
+| medium | 47% | 56% |
+| heavy | 48% | 56% |
+| ultraheavy | 48% | 56% |
+
+Hardware encoders are faster per frame (5 to 19 ms against VDWT's 54 ms single-thread for
+`realtime` at 1080p), but the bits they need are the cost a link pays on every frame.
+
 > [!IMPORTANT]
 > **The codec is fully available for use today as prebuilt binaries. The source code will be
 > open-sourced soon.**
