@@ -16,11 +16,10 @@
 
 Every VDWT tier against every x265 preset (`--tune psnr`, all tools on, no placebo) and the three
 hardware HEVC speed levels, as bitrate saving relative to x265 `medium` (higher is better) over
-encode time per frame. Hardware HEVC needs 1.7× to 3× x265 medium's bits, so its points sit
+encode time per frame. Hardware HEVC needs 2× to 3× x265 medium's bits here, so its points sit
 below the chart edge with their values.
 
 ![Motocross FPV: compression against encode time, VDWT, x265 and hardware HEVC](media/pareto_moto.png)
-
 
 ### Against the GPU's hardware encoders
 
