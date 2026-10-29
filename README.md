@@ -1,12 +1,19 @@
 # VDWT
 
+![VDWT ultraheavy against hardware HEVC at 600 kbit/s, 1080p60 motocross FPV footage](media/hero_motocross_600k.jpg)
+
+<sub>1080p60 FPV footage at 600 kbit/s. Left: VDWT `ultraheavy`, 38.97 dB. Right: hardware HEVC,
+35.38 dB.</sub>
+
+> **The codec is fully available for use today** as prebuilt binaries. **The source code will be
+> open-sourced soon.**
+
 VDWT is a low-latency wavelet video codec for drone downlinks, robotics and other live video on
 small ARM devices. It codes whole frames with an integer wavelet transform and predicts motion
 with a smooth motion mesh: there are no blocks anywhere in the pipeline, so no blocking
 artifacts, and every stage runs in parallel.
 
-> **Beta.** VDWT is distributed as prebuilt binaries; the source code is not public for the first
-> release. The bitstream format may still change between beta versions, so keep your source
+> **Beta.** The bitstream format may still change between beta versions, so keep your source
 > footage rather than archiving only `.vdwt` streams.
 
 ## Why VDWT
@@ -112,7 +119,18 @@ bitrate. Quality is YUV-PSNR 6:1:1, (6·Y + U + V) / 8, averaged over all frames
 | Bike | 731 kbit/s | 32.62 dB | 30.47 dB | **+2.15 dB** |
 
 At 600 kbit/s the hardware encoder could not go below about 730 kbit/s on the bike clip, so
-that row compares both at 731 kbit/s. Side-by-side videos are attached to the release.
+that row compares both at 731 kbit/s.
+
+**Motocross FPV drone, 600 kbit/s** (left VDWT, right hardware HEVC):
+
+![Motocross FPV at 600 kbit/s: VDWT against hardware HEVC](media/motocross_600k.gif)
+
+**Bike, 731 kbit/s, equal bitrate** (left VDWT, right hardware HEVC):
+
+![Bike ride at 731 kbit/s: VDWT against hardware HEVC](media/bike_731k.gif)
+
+The GIFs are 3-second excerpts at 25 fps; the full-length 60 fps side-by-side videos are attached
+to the release.
 Benchmarks against software encoders (x265) on public test sequences will follow.
 
 Footage: [Motocross FPV drone](https://www.pexels.com/video/motocross-fpv-drone-18326007/) by
@@ -123,7 +141,7 @@ from Pexels.
 
 VDWT is free to use for personal, research and educational use and for small businesses; larger
 commercial use needs a commercial license. The exact terms will be published with the first
-release. The source code may be opened in a later release.
+release. The source code will be open-sourced soon.
 
 ## Feedback
 
