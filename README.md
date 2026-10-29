@@ -26,6 +26,7 @@ Under the hood it is a block-free wavelet codec: an integer wavelet transform fo
 and a smooth motion mesh for prediction, so there are no blocking artifacts and every stage runs
 in parallel.
 
+> [!IMPORTANT]
 > **Beta.** The bitstream format may still change between beta versions, so keep your source
 > footage rather than archiving only `.vdwt` streams.
 
