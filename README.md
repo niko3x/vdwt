@@ -177,9 +177,17 @@ from Pexels.
 
 ## License
 
-VDWT is free to use for personal, research and educational use and for small businesses; larger
-commercial use needs a commercial license. The exact terms will be published with the first
-release. The source code will be open-sourced soon.
+The VDWT beta binaries are free for personal, hobby, research and educational use under the
+[PolyForm Noncommercial License 1.0.0](LICENSE-PolyForm-Noncommercial-1.0.0.md), and for
+companies with fewer than 100 people and under 1M USD revenue, including in closed-source
+products, under the
+[PolyForm Small Business License 1.0.0](LICENSE-PolyForm-Small-Business-1.0.0.md). Any company may evaluate VDWT internally for 90 days at no cost; larger
+companies need a [commercial license](COMMERCIAL.md) after that.
+
+The source code will be open-sourced soon, under your choice of the **AGPL-3.0** or the
+**PolyForm Small Business License**, or a commercial license. See [LICENSE](LICENSE).
+
+**Commercial licensing:** [vdwt@proton.me](mailto:vdwt@proton.me)
 
 ## Feedback
 

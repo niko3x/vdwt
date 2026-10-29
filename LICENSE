@@ -1,0 +1,39 @@
+VDWT
+Copyright (c) 2026 niko3x
+
+Required Notice: Copyright (c) 2026 niko3x (https://github.com/niko3x/vdwt)
+
+The VDWT beta binaries and documentation published here are available under
+your choice of:
+
+  1. The PolyForm Small Business License 1.0.0,
+     in LICENSE-PolyForm-Small-Business-1.0.0.md.
+
+  2. The PolyForm Noncommercial License 1.0.0,
+     in LICENSE-PolyForm-Noncommercial-1.0.0.md (personal use, hobby
+     projects, research, education, charities and public institutions).
+
+  3. A commercial license, by separate written agreement with the copyright
+     holder. See COMMERCIAL.md.
+
+Source code: the VDWT source code is not yet public. When it is released, it
+will be available under your choice of the GNU Affero General Public License,
+version 3 only (AGPL-3.0-only), the PolyForm Small Business License 1.0.0, or
+a commercial license.
+
+Plain-language summary (the license texts are what count; this summary is not
+part of them):
+
+  - Personal, hobby, research and educational use is free.
+
+  - A company with fewer than 100 people (employees and contractors, counting
+    its whole corporate group) and less than 1,000,000 USD (2019, adjusted for
+    inflation) revenue in the prior tax year may use VDWT free, including in
+    closed-source products.
+
+  - Any company, of any size, may evaluate VDWT internally for up to 90 days
+    at no cost; see COMMERCIAL.md.
+
+  - Everyone else needs a commercial license: write to vdwt@proton.me.
+
+SPDX-License-Identifier: PolyForm-Small-Business-1.0.0 OR PolyForm-Noncommercial-1.0.0
