@@ -16,6 +16,22 @@ your choice of:
   3. A commercial license, by separate written agreement with the copyright
      holder. See COMMERCIAL.md.
 
+Evaluation license: a company that does not qualify under license 1 or 2 is
+granted a free, non-exclusive, non-transferable license to install and run the
+VDWT binaries strictly for internal testing, benchmarking and prototyping, for
+up to 90 days from its first download. This evaluation license does not permit
+production use, use in any product or service offered to others,
+redistribution, or, to the extent permitted by applicable law, reverse
+engineering, decompiling or disassembling the binaries. It ends after 90 days,
+or earlier if its terms are breached; continued use then needs license 1, 2 or
+3.
+
+Disclaimer for the evaluation license: AS FAR AS THE LAW ALLOWS, THE SOFTWARE
+IS PROVIDED "AS IS", WITHOUT WARRANTY OR CONDITION OF ANY KIND, EXPRESS OR
+IMPLIED, AND THE COPYRIGHT HOLDER WILL NOT BE LIABLE FOR ANY DAMAGES ARISING
+FROM THE EVALUATION LICENSE OR THE USE OR NATURE OF THE SOFTWARE, UNDER ANY
+KIND OF LEGAL CLAIM.
+
 Source code: the VDWT source code is not yet public. When it is released, it
 will be available under your choice of the GNU Affero General Public License,
 version 3 only (AGPL-3.0-only), the PolyForm Small Business License 1.0.0, or
@@ -32,7 +48,7 @@ part of them):
     closed-source products.
 
   - Any company, of any size, may evaluate VDWT internally for up to 90 days
-    at no cost; see COMMERCIAL.md.
+    at no cost, under the evaluation license above (no production use).
 
   - Everyone else needs a commercial license: write to vdwt@proton.me.
 

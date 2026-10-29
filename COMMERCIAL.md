@@ -27,8 +27,9 @@ Business License, you need a commercial license from then on.
 
 Any company, of any size, may download and use VDWT **internally for evaluation** (testing,
 benchmarking and prototyping, without shipping a product or offering a service to others) for
-up to **90 days** at no cost. Continued use, or any use in a product or service, then needs one of
-the licenses above.
+up to **90 days** at no cost, under the evaluation license in [LICENSE](LICENSE). It is provided
+as is, without warranty or liability, and does not allow production use or redistribution.
+Continued use, or any use in a product or service, then needs one of the licenses above.
 
 ## What a commercial license gives you
 
