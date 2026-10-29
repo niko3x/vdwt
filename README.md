@@ -17,7 +17,7 @@
 > open-sourced soon.**
 
 VDWT is a **hardware-aware, fully parallel video codec** built to compete with
-hardware-accelerated codecs such as HEVC — and to beat them on efficiency. It is designed from
+hardware-accelerated codecs such as HEVC, and to beat them on efficiency. It is designed from
 the ground up to run fast on small CPUs and to map directly onto GPUs, NPUs, FPGAs and ASICs,
 for live video where every bit and every millisecond counts: drone downlinks, robotics and
 embedded cameras.
