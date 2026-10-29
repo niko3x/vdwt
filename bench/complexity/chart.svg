@@ -1,0 +1,113 @@
+<svg xmlns='http://www.w3.org/2000/svg' width='2000' height='1400' viewBox='0 0 2000 1400'>
+<rect width='2000' height='1400' fill='#FAF9F5'/>
+<rect x='4' y='4' width='1992' height='1392' fill='none' stroke='#222' stroke-width='3'/>
+<text x='62' y='95' font-family='Inter, Helvetica, Arial, sans-serif' font-size='38' font-weight='700' fill='#111'>Drone footage, I+P only</text>
+<text x='1945' y='95' font-family='Inter, Helvetica, Arial, sans-serif' font-size='34' fill='#777' text-anchor='end'>Compression vs encode complexity</text>
+<text x='62' y='135' font-family='Inter, Helvetica, Arial, sans-serif' font-size='24' fill='#888'>4 drone clips (beach, canyon, coast, tasmania), 30 frames each; no B-frames, lookahead or reordering; PSNR-Y BD-rate against x264 medium</text>
+<text x='62' y='167' font-family='Inter, Helvetica, Arial, sans-serif' font-size='24' fill='#888'>x264 tune psnr,zerolatency; x265 tune psnr with the zero-latency settings; hardware HEVC in CQP; VDWT at fixed qp, its rt at matched bitrates</text>
+<circle cx='250' cy='225' r='17' fill='#D9643A' stroke='#222' stroke-width='2.5'/>
+<text x='282' y='237' font-family='Inter, Helvetica, Arial, sans-serif' font-size='34' font-weight='600' fill='#111'>VDWT</text>
+<circle cx='422' cy='225' r='17' fill='#8E2C1C' stroke='#222' stroke-width='2.5'/>
+<text x='454' y='237' font-family='Inter, Helvetica, Arial, sans-serif' font-size='34' font-weight='600' fill='#111'>VDWT rt (lossy links)</text>
+<circle cx='900' cy='225' r='17' fill='#4CAF82' stroke='#222' stroke-width='2.5'/>
+<text x='932' y='237' font-family='Inter, Helvetica, Arial, sans-serif' font-size='34' font-weight='600' fill='#111'>x265</text>
+<circle cx='1072' cy='225' r='17' fill='#E8A838' stroke='#222' stroke-width='2.5'/>
+<text x='1104' y='237' font-family='Inter, Helvetica, Arial, sans-serif' font-size='34' font-weight='600' fill='#111'>x264</text>
+<circle cx='1244' cy='225' r='17' fill='#5F5F5F' stroke='#222' stroke-width='2.5'/>
+<text x='1276' y='237' font-family='Inter, Helvetica, Arial, sans-serif' font-size='34' font-weight='600' fill='#111'>HEVC hardware (Intel VAAPI)</text>
+<line x1='230' y1='1185.0' x2='1920' y2='1185.0' stroke='#D5D3CC' stroke-width='2'/>
+<text x='208' y='1196.0' font-family='Inter, Helvetica, Arial, sans-serif' font-size='30' fill='#555' text-anchor='end'>-60</text>
+<line x1='230' y1='1039.1666666666667' x2='1920' y2='1039.1666666666667' stroke='#D5D3CC' stroke-width='2'/>
+<text x='208' y='1050.1666666666667' font-family='Inter, Helvetica, Arial, sans-serif' font-size='30' fill='#555' text-anchor='end'>-40</text>
+<line x1='230' y1='893.3333333333333' x2='1920' y2='893.3333333333333' stroke='#D5D3CC' stroke-width='2'/>
+<text x='208' y='904.3333333333333' font-family='Inter, Helvetica, Arial, sans-serif' font-size='30' fill='#555' text-anchor='end'>-20</text>
+<line x1='230' y1='747.5' x2='1920' y2='747.5' stroke='#D5D3CC' stroke-width='2'/>
+<text x='208' y='758.5' font-family='Inter, Helvetica, Arial, sans-serif' font-size='30' fill='#555' text-anchor='end'>+0</text>
+<line x1='230' y1='601.6666666666666' x2='1920' y2='601.6666666666666' stroke='#D5D3CC' stroke-width='2'/>
+<text x='208' y='612.6666666666666' font-family='Inter, Helvetica, Arial, sans-serif' font-size='30' fill='#555' text-anchor='end'>+20</text>
+<line x1='230' y1='455.83333333333337' x2='1920' y2='455.83333333333337' stroke='#D5D3CC' stroke-width='2'/>
+<text x='208' y='466.83333333333337' font-family='Inter, Helvetica, Arial, sans-serif' font-size='30' fill='#555' text-anchor='end'>+40</text>
+<line x1='230' y1='310.0' x2='1920' y2='310.0' stroke='#D5D3CC' stroke-width='2'/>
+<text x='208' y='321.0' font-family='Inter, Helvetica, Arial, sans-serif' font-size='30' fill='#555' text-anchor='end'>+60</text>
+<line x1='230' y1='747.5' x2='1920' y2='747.5' stroke='#999' stroke-width='2.5' stroke-dasharray='10 8'/>
+<line x1='230' y1='260' x2='230' y2='1185' stroke='#222' stroke-width='3'/>
+<line x1='230' y1='1185' x2='1920' y2='1185' stroke='#222' stroke-width='3'/>
+<text x='230.0' y='1237' font-family='Inter, Helvetica, Arial, sans-serif' font-size='30' fill='#555' text-anchor='middle'>1</text>
+<line x1='230.0' y1='1185' x2='230.0' y2='1195' stroke='#222' stroke-width='2'/>
+<text x='384.1157436740584' y='1237' font-family='Inter, Helvetica, Arial, sans-serif' font-size='30' fill='#555' text-anchor='middle'>2</text>
+<line x1='384.1157436740584' y1='1185' x2='384.1157436740584' y2='1195' stroke='#222' stroke-width='2'/>
+<text x='587.8456751012556' y='1237' font-family='Inter, Helvetica, Arial, sans-serif' font-size='30' fill='#555' text-anchor='middle'>5</text>
+<line x1='587.8456751012556' y1='1185' x2='587.8456751012556' y2='1195' stroke='#222' stroke-width='2'/>
+<text x='741.9614187753139' y='1237' font-family='Inter, Helvetica, Arial, sans-serif' font-size='30' fill='#555' text-anchor='middle'>10</text>
+<line x1='741.9614187753139' y1='1185' x2='741.9614187753139' y2='1195' stroke='#222' stroke-width='2'/>
+<text x='896.0771624493723' y='1237' font-family='Inter, Helvetica, Arial, sans-serif' font-size='30' fill='#555' text-anchor='middle'>20</text>
+<line x1='896.0771624493723' y1='1185' x2='896.0771624493723' y2='1195' stroke='#222' stroke-width='2'/>
+<text x='1099.8070938765693' y='1237' font-family='Inter, Helvetica, Arial, sans-serif' font-size='30' fill='#555' text-anchor='middle'>50</text>
+<line x1='1099.8070938765693' y1='1185' x2='1099.8070938765693' y2='1195' stroke='#222' stroke-width='2'/>
+<text x='1253.9228375506277' y='1237' font-family='Inter, Helvetica, Arial, sans-serif' font-size='30' fill='#555' text-anchor='middle'>100</text>
+<line x1='1253.9228375506277' y1='1185' x2='1253.9228375506277' y2='1195' stroke='#222' stroke-width='2'/>
+<text x='1408.0385812246861' y='1237' font-family='Inter, Helvetica, Arial, sans-serif' font-size='30' fill='#555' text-anchor='middle'>200</text>
+<line x1='1408.0385812246861' y1='1185' x2='1408.0385812246861' y2='1195' stroke='#222' stroke-width='2'/>
+<text x='1611.768512651883' y='1237' font-family='Inter, Helvetica, Arial, sans-serif' font-size='30' fill='#555' text-anchor='middle'>500</text>
+<line x1='1611.768512651883' y1='1185' x2='1611.768512651883' y2='1195' stroke='#222' stroke-width='2'/>
+<text x='1765.8842563259416' y='1237' font-family='Inter, Helvetica, Arial, sans-serif' font-size='30' fill='#555' text-anchor='middle'>1000</text>
+<line x1='1765.8842563259416' y1='1185' x2='1765.8842563259416' y2='1195' stroke='#222' stroke-width='2'/>
+<text x='1920.0000000000002' y='1237' font-family='Inter, Helvetica, Arial, sans-serif' font-size='30' fill='#555' text-anchor='middle'>2000</text>
+<line x1='1920.0000000000002' y1='1185' x2='1920.0000000000002' y2='1195' stroke='#222' stroke-width='2'/>
+<text x='1075.0' y='1303' font-family='Inter, Helvetica, Arial, sans-serif' font-size='34' fill='#222' text-anchor='middle'>Encode time per frame (ms, log scale; 720p, 4 threads, x86 laptop; hardware: wall time)</text>
+<text transform='translate(118,747.5) rotate(-90)' font-family='Inter, Helvetica, Arial, sans-serif' font-size='34' fill='#222' text-anchor='middle'>Bitrate saving vs x264 medium (%)</text>
+<path d='M794.2,508.2 L866.8,500.0 L1009.4,473.4 L1129.0,469.9' fill='none' stroke='#D9643A' stroke-width='6' stroke-linejoin='round'/>
+<path d='M845.8,679.8 L927.6,618.6 L1040.4,545.1 L1051.7,544.4 L1078.6,522.5 L1088.4,535.0 L1305.5,473.5 L1636.4,452.2 L1744.7,442.8 L1887.0,439.9' fill='none' stroke='#4CAF82' stroke-width='6' stroke-linejoin='round'/>
+<path d='M327.7,1185.0 L548.2,1033.4 L641.6,1000.6 L742.7,819.3 L834.6,746.4 L860.1,747.5 L1051.9,718.0 L1142.7,712.3 L1238.3,716.6 L1508.0,730.0' fill='none' stroke='#E8A838' stroke-width='6' stroke-linejoin='round'/>
+<path d='M406.3,897.3 L626.7,792.3 L762.6,756.0' fill='none' stroke='#5F5F5F' stroke-width='6' stroke-linejoin='round'/>
+<circle cx='794.2' cy='508.2' r='17' fill='#D9643A' stroke='#222' stroke-width='2.5'/>
+<text x='764.2' y='476.2' font-family='Inter, Helvetica, Arial, sans-serif' font-size='28' fill='#222' text-anchor='middle'>realtime</text>
+<circle cx='866.8' cy='500.0' r='17' fill='#D9643A' stroke='#222' stroke-width='2.5'/>
+<text x='884.8' y='468.0' font-family='Inter, Helvetica, Arial, sans-serif' font-size='28' fill='#222' text-anchor='middle'>light</text>
+<circle cx='1009.4' cy='473.4' r='17' fill='#D9643A' stroke='#222' stroke-width='2.5'/>
+<text x='999.4' y='441.4' font-family='Inter, Helvetica, Arial, sans-serif' font-size='28' fill='#222' text-anchor='middle'>medium</text>
+<circle cx='1129.0' cy='469.9' r='17' fill='#D9643A' stroke='#222' stroke-width='2.5'/>
+<text x='1151.0' y='437.9' font-family='Inter, Helvetica, Arial, sans-serif' font-size='28' fill='#222' text-anchor='middle'>heavy</text>
+<circle cx='662.0' cy='847.2' r='17' fill='#8E2C1C' stroke='#222' stroke-width='2.5'/>
+<text x='698.0' y='857.2' font-family='Inter, Helvetica, Arial, sans-serif' font-size='28' fill='#222' text-anchor='middle'>rt</text>
+<circle cx='845.8' cy='679.8' r='17' fill='#4CAF82' stroke='#222' stroke-width='2.5'/>
+<text x='760.8' y='689.8' font-family='Inter, Helvetica, Arial, sans-serif' font-size='28' fill='#222' text-anchor='middle'>ultrafast</text>
+<circle cx='927.6' cy='618.6' r='17' fill='#4CAF82' stroke='#222' stroke-width='2.5'/>
+<text x='967.6' y='670.6' font-family='Inter, Helvetica, Arial, sans-serif' font-size='28' fill='#222' text-anchor='middle'>superfast</text>
+<circle cx='1040.4' cy='545.1' r='17' fill='#4CAF82' stroke='#222' stroke-width='2.5'/>
+<circle cx='1051.7' cy='544.4' r='17' fill='#4CAF82' stroke='#222' stroke-width='2.5'/>
+<circle cx='1078.6' cy='522.5' r='17' fill='#4CAF82' stroke='#222' stroke-width='2.5'/>
+<circle cx='1088.4' cy='535.0' r='17' fill='#4CAF82' stroke='#222' stroke-width='2.5'/>
+<text x='1118.4' y='587.0' font-family='Inter, Helvetica, Arial, sans-serif' font-size='28' fill='#222' text-anchor='middle'>medium</text>
+<circle cx='1305.5' cy='473.5' r='17' fill='#4CAF82' stroke='#222' stroke-width='2.5'/>
+<text x='1305.5' y='525.5' font-family='Inter, Helvetica, Arial, sans-serif' font-size='28' fill='#222' text-anchor='middle'>slow</text>
+<circle cx='1636.4' cy='452.2' r='17' fill='#4CAF82' stroke='#222' stroke-width='2.5'/>
+<text x='1636.4' y='504.2' font-family='Inter, Helvetica, Arial, sans-serif' font-size='28' fill='#222' text-anchor='middle'>slower</text>
+<circle cx='1744.7' cy='442.8' r='17' fill='#4CAF82' stroke='#222' stroke-width='2.5'/>
+<text x='1744.7' y='494.8' font-family='Inter, Helvetica, Arial, sans-serif' font-size='28' fill='#222' text-anchor='middle'>veryslow</text>
+<circle cx='1887.0' cy='439.9' r='17' fill='#4CAF82' stroke='#222' stroke-width='2.5'/>
+<text x='1887.0' y='491.9' font-family='Inter, Helvetica, Arial, sans-serif' font-size='28' fill='#222' text-anchor='middle'>placebo</text>
+<path d='M311.7,1163.0 L343.7,1163.0 L327.7,1189.0 Z' fill='#E8A838' stroke='#222' stroke-width='2.5'/>
+<text x='353.7' y='1181.0' font-family='Inter, Helvetica, Arial, sans-serif' font-size='28' fill='#222'>ultrafast (-118%)</text>
+<circle cx='548.2' cy='1033.4' r='17' fill='#E8A838' stroke='#222' stroke-width='2.5'/>
+<text x='548.2' y='1085.4' font-family='Inter, Helvetica, Arial, sans-serif' font-size='28' fill='#222' text-anchor='middle'>superfast</text>
+<circle cx='641.6' cy='1000.6' r='17' fill='#E8A838' stroke='#222' stroke-width='2.5'/>
+<circle cx='742.7' cy='819.3' r='17' fill='#E8A838' stroke='#222' stroke-width='2.5'/>
+<text x='772.7' y='871.3' font-family='Inter, Helvetica, Arial, sans-serif' font-size='28' fill='#222' text-anchor='middle'>faster</text>
+<circle cx='834.6' cy='746.4' r='17' fill='#E8A838' stroke='#222' stroke-width='2.5'/>
+<circle cx='860.1' cy='747.5' r='17' fill='#E8A838' stroke='#222' stroke-width='2.5'/>
+<text x='878.1' y='799.5' font-family='Inter, Helvetica, Arial, sans-serif' font-size='28' fill='#222' text-anchor='middle'>medium</text>
+<circle cx='1051.9' cy='718.0' r='17' fill='#E8A838' stroke='#222' stroke-width='2.5'/>
+<text x='1051.9' y='770.0' font-family='Inter, Helvetica, Arial, sans-serif' font-size='28' fill='#222' text-anchor='middle'>slow</text>
+<circle cx='1142.7' cy='712.3' r='17' fill='#E8A838' stroke='#222' stroke-width='2.5'/>
+<circle cx='1238.3' cy='716.6' r='17' fill='#E8A838' stroke='#222' stroke-width='2.5'/>
+<text x='1238.3' y='768.6' font-family='Inter, Helvetica, Arial, sans-serif' font-size='28' fill='#222' text-anchor='middle'>veryslow</text>
+<circle cx='1508.0' cy='730.0' r='17' fill='#E8A838' stroke='#222' stroke-width='2.5'/>
+<text x='1508.0' y='782.0' font-family='Inter, Helvetica, Arial, sans-serif' font-size='28' fill='#222' text-anchor='middle'>placebo</text>
+<circle cx='762.6' cy='756.0' r='17' fill='#5F5F5F' stroke='#222' stroke-width='2.5'/>
+<text x='762.6' y='724.0' font-family='Inter, Helvetica, Arial, sans-serif' font-size='28' fill='#222' text-anchor='middle'>TU1</text>
+<circle cx='626.7' cy='792.3' r='17' fill='#5F5F5F' stroke='#222' stroke-width='2.5'/>
+<text x='616.7' y='760.3' font-family='Inter, Helvetica, Arial, sans-serif' font-size='28' fill='#222' text-anchor='middle'>TU4</text>
+<circle cx='406.3' cy='897.3' r='17' fill='#5F5F5F' stroke='#222' stroke-width='2.5'/>
+<text x='406.3' y='865.3' font-family='Inter, Helvetica, Arial, sans-serif' font-size='28' fill='#222' text-anchor='middle'>TU7</text>
+</svg>

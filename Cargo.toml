@@ -1,0 +1,26 @@
+[workspace]
+resolver = "3"
+members = ["crates/vdwt", "crates/vdwt-cli"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.87"
+publish = false
+license = "AGPL-3.0-only OR PolyForm-Small-Business-1.0.0"
+
+[workspace.lints.rust]
+unsafe_op_in_unsafe_fn = "deny"
+
+[profile.release]
+codegen-units = 1
+lto = "thin"
+# Keeps `perf` / `simpleperf` symbolization usable on the target board.
+debug = "line-tables-only"
+
+# Release binaries for distribution: no debug info, symbols stripped, whole-program LTO.
+[profile.dist]
+inherits = "release"
+debug = false
+strip = true
+lto = "fat"

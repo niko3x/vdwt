@@ -1,0 +1,15 @@
+a720 vdwt-ultraheavy-ctxcarry 42 480.5 80.4567 39.0700 46.59
+a720 vdwt-ultraheavy-ctxcarry 50 230.2 63.2284 36.0500 38.47
+a720 vdwt-ultraheavy-ctxcarry 58 111.8 40.2580 33.0400 31.91
+b720 vdwt-ultraheavy-ctxcarry 42 754.8 86.2887 38.2400 55.89
+b720 vdwt-ultraheavy-ctxcarry 50 365.6 74.7879 35.0200 41.88
+b720 vdwt-ultraheavy-ctxcarry 58 176.2 57.1281 31.9200 34.16
+canyon vdwt-ultraheavy-ctxcarry 42 445.2 70.0297 39.0100 74.20
+canyon vdwt-ultraheavy-ctxcarry 50 171.0 48.2473 36.4500 92.12
+canyon vdwt-ultraheavy-ctxcarry 58 75.2 28.6794 34.2900 77.62
+forest vdwt-ultraheavy-ctxcarry 42 9780.5 78.6229 31.7200 97.39
+forest vdwt-ultraheavy-ctxcarry 50 3060.9 51.4079 28.5300 93.36
+forest vdwt-ultraheavy-ctxcarry 58 862.8 27.6967 26.2000 68.13
+tasmania vdwt-ultraheavy-ctxcarry 42 584.1 71.9139 41.1900 107.55
+tasmania vdwt-ultraheavy-ctxcarry 50 263.7 54.5856 38.6400 90.30
+tasmania vdwt-ultraheavy-ctxcarry 58 127.6 35.1103 36.0200 74.26

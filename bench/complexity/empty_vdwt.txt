@@ -1,0 +1,15 @@
+a720 vdwt-ultraheavy 42 506.0 80.4567 39.0700 0.0
+a720 vdwt-ultraheavy 50 242.8 63.2284 36.0500 0.0
+a720 vdwt-ultraheavy 58 118.6 40.2580 33.0400 0.0
+b720 vdwt-ultraheavy 42 793.9 86.2887 38.2400 0.0
+b720 vdwt-ultraheavy 50 384.0 74.7879 35.0200 0.0
+b720 vdwt-ultraheavy 58 186.2 57.1281 31.9200 0.0
+canyon vdwt-ultraheavy 42 472.2 70.0297 39.0100 0.0
+canyon vdwt-ultraheavy 50 184.4 48.2473 36.4500 0.0
+canyon vdwt-ultraheavy 58 80.5 28.6794 34.2900 0.0
+forest vdwt-ultraheavy 42 10169.0 78.6229 31.7200 0.0
+forest vdwt-ultraheavy 50 3182.1 51.4079 28.5300 0.0
+forest vdwt-ultraheavy 58 904.3 27.6967 26.2000 0.0
+tasmania vdwt-ultraheavy 42 630.7 71.9139 41.1900 0.0
+tasmania vdwt-ultraheavy 50 282.2 54.5856 38.6400 0.0
+tasmania vdwt-ultraheavy 58 135.7 35.1103 36.0200 0.0

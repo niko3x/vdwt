@@ -1,0 +1,11 @@
+# Static Cortex-A55 builds: one self-contained binary that runs on any aarch64 Linux
+# (or Android via `adb push`). No cross C toolchain needed; Rust's bundled lld links it.
+#   cargo build --release --target aarch64-unknown-linux-musl -p vdwt-cli
+[target.aarch64-unknown-linux-musl]
+linker = "rust-lld"
+# Generic ARMv8-A, so the binary also runs on older cores (Cortex-A53/A57/A72: Raspberry Pi 3/4,
+# Jetson Nano). For a build tuned to one board, add e.g.
+#   RUSTFLAGS="-C target-cpu=cortex-a55"
+# With qemu-user installed, `cargo test --target aarch64-unknown-linux-musl` runs under emulation
+# (correctness only; performance numbers must come from real hardware).
+runner = "qemu-aarch64"

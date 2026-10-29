@@ -1,0 +1,39 @@
+# Directional intra oracle (bench/complexity/public_intra_oracle.py)
+# The oracle is not signalled: it is the upper bound of any directional intra coder.
+# 'net -' is the whole-stream saving after the direction field's signalling (2 bits/region).
+# qp 42, 32x32 direction field, neighbour error rms 4 (the codec's own intra error is 3.1-5.5).
+
+clip          qp  blk       DC   oracle  intra -  intra%   stream   all -  signal   net -
+fourpeople    42   32    18448     7962    56.8%   39.2%    46946  22.34%    230  21.85%
+fourpeople    50   32     8914     2034    77.2%   37.7%    23483  29.30%    230  28.32%
+fourpeople    58   32     3783      242    93.6%   33.3%    11210  31.59%    230  29.54%
+stockholm     42   32      363      307    15.4%    0.4%    70796   0.08%    230  -0.25%
+stockholm     50   32      241      134    44.4%    0.7%    29586   0.36%    230  -0.42%
+stockholm     58   32      183      106    42.1%    1.2%    12459   0.62%    230  -1.23%
+parkrun       42   32      318      301     5.3%    0.1%   366775   0.00%    230  -0.06%
+parkrun       50   32      261      133    49.0%    0.2%   110345   0.12%    230  -0.09%
+parkrun       58   32      187      106    43.3%    0.5%    27123   0.30%    230  -0.55%
+shields       42   32      318      301     5.3%    0.2%   119327   0.01%    230  -0.18%
+shields       50   32      261      133    49.0%    0.4%    51773   0.25%    230  -0.20%
+shields       58   32      187      106    43.3%    0.7%    21450   0.38%    230  -0.69%
+aerial        42   32    31764    23401    26.3%   35.4%    89536   9.34%    230   9.08%
+aerial        50   32     9785     2757    71.8%   29.8%    32710  21.49%    230  20.78%
+aerial        58   32     2916      216    92.6%   28.3%    10157  26.58%    230  24.32%
+
+The oracle is not signalled: it is the upper bound of any directional intra coder,
+block-free or not. The residual is clipped to the codec's 8-bit range, which costs the
+oracle a little where the directional prediction fails badly.
+
+# Sensitivity to the neighbours' reconstruction error (fourpeople/aerial, qp 42, 32x32 field):
+# rms=0
+fourpeople    42   32    18448     5360    70.9%   39.2%    46946  27.88%    230  27.39%
+aerial        42   32    31764    20159    36.5%   35.4%    89536  12.96%    230  12.70%
+# rms=2
+fourpeople    42   32    18448     5887    68.1%   39.2%    46946  26.76%    230  26.27%
+aerial        42   32    31764    21064    33.7%   35.4%    89536  11.95%    230  11.69%
+# rms=4
+fourpeople    42   32    18448     7962    56.8%   39.2%    46946  22.34%    230  21.85%
+aerial        42   32    31764    23401    26.3%   35.4%    89536   9.34%    230   9.08%
+# rms=8
+fourpeople    42   32    18448     8995    51.2%   39.2%    46946  20.14%    230  19.65%
+aerial        42   32    31764    24874    21.7%   35.4%    89536   7.70%    230   7.44%

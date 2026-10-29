@@ -1,0 +1,44 @@
+<svg xmlns='http://www.w3.org/2000/svg' width='1200' height='700' font-family='sans-serif'>
+<rect width='1200' height='700' fill='white'/>
+<text x='110' y='40' font-size='26' font-weight='bold'>VDWT with and without the CNN restoration filter</text>
+<text x='110' y='68' font-size='15' fill='#555'>3 public Xiph clips never seen in CNN training (Netflix Aerial, vidyo4, park_joy), 20 frames, 720p; YUV-PSNR 6:1:1 BD-rate vs VDWT medium</text>
+<text x='110' y='90' font-size='15' fill='#555'>CNN applied to decoded frames with a per-frame switch (offline); its time is single-thread float PyTorch on the x86 laptop</text>
+<line x1='110' x2='1160' y1='120.0' y2='120.0' stroke='#e5e5e5'/><text x='100' y='125.0' font-size='14' text-anchor='end'>-20%</text>
+<line x1='110' x2='1160' y1='201.7' y2='201.7' stroke='#e5e5e5'/><text x='100' y='206.7' font-size='14' text-anchor='end'>-15%</text>
+<line x1='110' x2='1160' y1='283.3' y2='283.3' stroke='#e5e5e5'/><text x='100' y='288.3' font-size='14' text-anchor='end'>-10%</text>
+<line x1='110' x2='1160' y1='365.0' y2='365.0' stroke='#e5e5e5'/><text x='100' y='370.0' font-size='14' text-anchor='end'>-5%</text>
+<line x1='110' x2='1160' y1='446.7' y2='446.7' stroke='#e5e5e5'/><text x='100' y='451.7' font-size='14' text-anchor='end'>+0%</text>
+<line x1='110' x2='1160' y1='528.3' y2='528.3' stroke='#e5e5e5'/><text x='100' y='533.3' font-size='14' text-anchor='end'>+5%</text>
+<line x1='110' x2='1160' y1='610.0' y2='610.0' stroke='#e5e5e5'/><text x='100' y='615.0' font-size='14' text-anchor='end'>+10%</text>
+<line y1='120' y2='610' x1='209.9' x2='209.9' stroke='#eee'/><text x='209.9' y='632' font-size='14' text-anchor='middle'>10</text>
+<line y1='120' y2='610' x1='330.9' x2='330.9' stroke='#eee'/><text x='330.9' y='632' font-size='14' text-anchor='middle'>20</text>
+<line y1='120' y2='610' x1='490.9' x2='490.9' stroke='#eee'/><text x='490.9' y='632' font-size='14' text-anchor='middle'>50</text>
+<line y1='120' y2='610' x1='611.9' x2='611.9' stroke='#eee'/><text x='611.9' y='632' font-size='14' text-anchor='middle'>100</text>
+<line y1='120' y2='610' x1='732.9' x2='732.9' stroke='#eee'/><text x='732.9' y='632' font-size='14' text-anchor='middle'>200</text>
+<line y1='120' y2='610' x1='892.9' x2='892.9' stroke='#eee'/><text x='892.9' y='632' font-size='14' text-anchor='middle'>500</text>
+<line y1='120' y2='610' x1='1013.9' x2='1013.9' stroke='#eee'/><text x='1013.9' y='632' font-size='14' text-anchor='middle'>1000</text>
+<line y1='120' y2='610' x1='1134.9' x2='1134.9' stroke='#eee'/><text x='1134.9' y='632' font-size='14' text-anchor='middle'>2000</text>
+<text x='635.0' y='670' font-size='16' text-anchor='middle'>Decode time per frame (ms, log scale; single thread)</text>
+<text x='30' y='365.0' font-size='16' text-anchor='middle' transform='rotate(-90 30 365.0)'>BD-rate vs VDWT medium (higher up = fewer bits)</text>
+<polyline points='180.8,513.6 184.1,477.5 182.0,446.7 181.3,438.9 216.2,396.0' fill='none' stroke='#2E6DB4' stroke-width='2.5'/>
+<circle cx='180.8' cy='513.6' r='6' fill='#2E6DB4'/><text x='188.8' y='505.6' font-size='12' fill='#2E6DB4'>realtime</text>
+<circle cx='184.1' cy='477.5' r='6' fill='#2E6DB4'/><text x='192.1' y='469.5' font-size='12' fill='#2E6DB4'>light</text>
+<circle cx='182.0' cy='446.7' r='6' fill='#2E6DB4'/><text x='190.0' y='438.7' font-size='12' fill='#2E6DB4'>medium</text>
+<circle cx='181.3' cy='438.9' r='6' fill='#2E6DB4'/><text x='189.3' y='430.9' font-size='12' fill='#2E6DB4'>heavy</text>
+<circle cx='216.2' cy='396.0' r='6' fill='#2E6DB4'/><text x='224.2' y='388.0' font-size='12' fill='#2E6DB4'>ultraheavy</text>
+<rect x='780' y='515' width='16' height='16' fill='#2E6DB4'/><text x='804' y='528' font-size='15'>VDWT</text>
+<polyline points='854.4,387.3 854.5,357.4 854.5,336.9 854.5,326.8 855.3,282.2' fill='none' stroke='#D9822B' stroke-width='2.5'/>
+<circle cx='854.4' cy='387.3' r='6' fill='#D9822B'/><text x='862.4' y='379.3' font-size='12' fill='#D9822B'>realtime</text>
+<circle cx='854.5' cy='357.4' r='6' fill='#D9822B'/><text x='862.5' y='349.4' font-size='12' fill='#D9822B'>light</text>
+<circle cx='854.5' cy='336.9' r='6' fill='#D9822B'/><text x='862.5' y='328.9' font-size='12' fill='#D9822B'>medium</text>
+<circle cx='854.5' cy='326.8' r='6' fill='#D9822B'/><text x='862.5' y='318.8' font-size='12' fill='#D9822B'>heavy</text>
+<circle cx='855.3' cy='282.2' r='6' fill='#D9822B'/><text x='863.3' y='274.2' font-size='12' fill='#D9822B'>ultraheavy</text>
+<rect x='780' y='543' width='16' height='16' fill='#D9822B'/><text x='804' y='556' font-size='15'>VDWT + small CNN (12×4, ~4k MAC/px)</text>
+<polyline points='1089.0,357.2 1089.0,323.5 1089.0,304.8 1089.0,291.1 1089.2,244.1' fill='none' stroke='#7B1E3A' stroke-width='2.5'/>
+<circle cx='1089.0' cy='357.2' r='6' fill='#7B1E3A'/><text x='1097.0' y='349.2' font-size='12' fill='#7B1E3A'>realtime</text>
+<circle cx='1089.0' cy='323.5' r='6' fill='#7B1E3A'/><text x='1097.0' y='315.5' font-size='12' fill='#7B1E3A'>light</text>
+<circle cx='1089.0' cy='304.8' r='6' fill='#7B1E3A'/><text x='1097.0' y='296.8' font-size='12' fill='#7B1E3A'>medium</text>
+<circle cx='1089.0' cy='291.1' r='6' fill='#7B1E3A'/><text x='1097.0' y='283.1' font-size='12' fill='#7B1E3A'>heavy</text>
+<circle cx='1089.2' cy='244.1' r='6' fill='#7B1E3A'/><text x='1097.2' y='236.1' font-size='12' fill='#7B1E3A'>ultraheavy</text>
+<rect x='780' y='571' width='16' height='16' fill='#7B1E3A'/><text x='804' y='584' font-size='15'>VDWT + large CNN (32×6, ~49k MAC/px)</text>
+</svg>

@@ -42,8 +42,9 @@ Hardware encoders are faster per frame (5 to 19 ms against VDWT's 54 ms single-t
 `realtime` at 1080p), but the bits they need are the cost a link pays on every frame.
 
 > [!IMPORTANT]
-> **The codec is fully available for use today as prebuilt binaries. The source code will be
-> open-sourced soon.**
+> **VDWT is open source.** Use it under the AGPL-3.0, free for small businesses under the PolyForm
+> Small Business License, or under a commercial license. Prebuilt binaries are in the
+> [releases](../../releases).
 
 VDWT is a **hardware-aware, fully parallel video codec** built to compete with
 hardware-accelerated codecs such as HEVC, and to beat them on efficiency. It is designed from
@@ -92,7 +93,33 @@ Prebuilt binaries are attached to each [release](../../releases):
 The binaries need no extra libraries. Streams and decoded pictures are identical on every
 platform. macOS builds are planned.
 
-After unpacking, check that the binary works on your CPU:
+### Build from source
+
+Rust 1.87 or newer; no other dependencies.
+
+```bash
+cargo build --release
+```
+
+```bash
+cargo test --release
+```
+
+The binary is `target/release/vdwt`. For a static ARM64 binary (no cross C toolchain needed):
+
+```bash
+rustup target add aarch64-unknown-linux-musl
+```
+
+```bash
+cargo build --release --target aarch64-unknown-linux-musl -p vdwt-cli
+```
+
+The design is described in [DESIGN.md](DESIGN.md).
+
+### Check the binary
+
+After unpacking or building, check that the binary works on your CPU:
 
 ```bash
 ./vdwt selftest
@@ -177,17 +204,24 @@ from Pexels.
 
 ## License
 
-The VDWT beta binaries are free for personal, hobby, research and educational use under the
-[PolyForm Noncommercial License 1.0.0](LICENSE-PolyForm-Noncommercial-1.0.0.md), and for
-companies with fewer than 100 people and under 1M USD revenue, including in closed-source
-products, under the
-[PolyForm Small Business License 1.0.0](LICENSE-PolyForm-Small-Business-1.0.0.md). Any company may evaluate VDWT internally for 90 days at no cost; larger
-companies need a [commercial license](COMMERCIAL.md) after that.
+VDWT is available under your choice of:
 
-The source code will be open-sourced soon, under your choice of the **AGPL-3.0** or the
-**PolyForm Small Business License**, or a commercial license. See [LICENSE](LICENSE).
+- the [GNU AGPL-3.0](LICENSE-AGPL-3.0.txt), free for everyone who meets its terms (if you
+  distribute VDWT or software built with it, or offer it over a network, you share that
+  software's source under the AGPL);
+- the [PolyForm Small Business License 1.0.0](LICENSE-PolyForm-Small-Business-1.0.0.md), free for
+  companies with fewer than 100 people and under 1M USD revenue, including in closed-source
+  products;
+- a [commercial license](COMMERCIAL.md) for everyone else who wants to ship VDWT without the
+  AGPL's obligations.
 
-**Commercial licensing:** [vdwt@proton.me](mailto:vdwt@proton.me)
+See [LICENSE](LICENSE). **Commercial licensing:** [vdwt@proton.me](mailto:vdwt@proton.me)
+
+## Contributing
+
+Bug reports, benchmarks on your own footage and pull requests are welcome. To keep the
+small-business and commercial licenses possible, contributions are accepted under a
+Contributor License Agreement; see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Feedback
 

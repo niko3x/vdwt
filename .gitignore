@@ -1,0 +1,13 @@
+/target
+*.y4m
+*.pgm
+__pycache__/
+
+# Internal lab notes (private clips and working history); not published.
+/docs/internal/
+/TASKS.md
+/EXPERIMENTS.md
+/HISTORY.md
+/readme.txt
+
+/videos/
