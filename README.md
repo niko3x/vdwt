@@ -37,6 +37,9 @@ in parallel.
 - **Reaches rates hardware HEVC cannot.** On fast 1080p60 footage a hardware HEVC encoder may
   bottom out above 700 kbit/s; VDWT holds any link rate down to a few kbit/s, sending 7-byte
   repeat frames when nothing changes.
+- **Strongest where video is hardest.** VDWT does extremely well on high-motion, complex footage
+  (FPV flights, action, fast pans, dense texture), and still does a solid job on low-motion
+  content such as podcasts and talking heads.
 - **Low latency and link-following rate control.** The rate can change mid-stream
   (`4M@0,1500k@40`); frames are kept within a queueing-delay bound, and when a frame cannot fit,
   its finest detail is dropped instead of the frame.
