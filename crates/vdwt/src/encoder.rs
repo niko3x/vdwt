@@ -141,8 +141,9 @@ pub struct EncoderConfig {
     /// node vectors.
     pub motion_lambda: f64,
     /// Causal frame-level activity adaptation: qp moves by `-frame_aq·log2(activity/average)`,
-    /// clamped to ±`frame_aq_clamp`. 0 disables it (fixed qp). Encoder-only: the qp is already
-    /// in every frame header.
+    /// clamped to ±`frame_aq_clamp`. 0 disables it (fixed qp); a negative strength inverts it
+    /// (busy frames coarser, static ones finer, as x265's CRF does). Encoder-only: the qp is
+    /// already in every frame header.
     pub frame_aq: f64,
     /// Largest qp change the activity adaptation may make.
     pub frame_aq_clamp: u8,
@@ -312,8 +313,8 @@ impl EncoderConfig {
         if !(0.0..=100.0).contains(&self.motion_lambda) || !(0.0..=1.0).contains(&self.scene_cut) {
             return fail("motion_lambda must be in 0..=100 and scene_cut in 0..=1".into());
         }
-        if !(0.0..=4.0).contains(&self.frame_aq) || self.frame_aq_clamp > 16 {
-            return fail("frame_aq must be in 0..=4 and frame_aq_clamp in 0..=16".into());
+        if !(-4.0..=4.0).contains(&self.frame_aq) || self.frame_aq_clamp > 16 {
+            return fail("frame_aq must be in -4..=4 and frame_aq_clamp in 0..=16".into());
         }
         if !(0.0..=2.0).contains(&self.loop_sharpen) {
             return fail("loop_sharpen must be in 0..=2".into());
@@ -467,8 +468,16 @@ pub struct Encoder {
     seq: SequenceHeader,
     slots: Vec<BandSlot>,
     contexts: Vec<Contexts>,
-    /// Per band and coding class, entropy contexts carried across fixed-qp frames.
+    /// Per band and coding class, entropy contexts carried from frame to frame.
     band_contexts: Vec<std::sync::Mutex<[Contexts; 2]>>,
+    /// Each band's contexts after coding the current frame, with their class. They replace the
+    /// carried ones only once the band is written: rate control may still drop it, or repeat or
+    /// skip the frame, and the decoder must see the same state.
+    band_pending: Vec<Option<(usize, Contexts)>>,
+    /// The motion coder before this P-frame's section was coded, under rate control: if the
+    /// section is replaced (global-only fallback) or never sent (Repeat, skip), its carried
+    /// contexts must not have advanced.
+    motion_snapshot: Option<MotionCoder>,
     comps: [Component; 3],
     /// Every band's quantized values, in coding order.
     values: Vec<Plane<i32>>,
@@ -643,11 +652,14 @@ impl Encoder {
             luma_weights: weights(cfg.luma_levels, 1.0, finest_tilt, cfg.hh_tilt, cfg.mid_tilt),
             chroma_weights: weights(cfg.chroma_levels, cfg.chroma_step_scale, 1.0, 1.0, 1.0),
             guide: cfg.guide,
-            continuous_cdfs: cfg.rate_control.is_none(),
+            // Under rate control too: a section's contexts advance only when it is sent.
+            continuous_cdfs: true,
             layout_coding: true,
-            band_contexts: cfg.rate_control.is_none(),
+            // Rate-controlled streams carry them too: a band's state advances only when the band
+            // is written, so dropped bands and repeated or skipped frames stay in step.
+            band_contexts: true,
             temporal_mv: false,
-            temporal_motion: cfg.temporal_motion && cfg.rate_control.is_none(),
+            temporal_motion: cfg.temporal_motion,
         };
         let slots = codec::band_slots(&seq);
         let comps = std::array::from_fn(|comp| {
@@ -693,6 +705,8 @@ impl Encoder {
         Ok(Self {
             contexts,
             band_contexts,
+            band_pending: Vec::new(),
+            motion_snapshot: None,
             recon: Frame::new(cfg.width, cfg.height),
             pred: Frame::new(cfg.width, cfg.height),
             sharp_src: std::array::from_fn(|comp| {
@@ -703,8 +717,8 @@ impl Encoder {
             previous_field: MotionField::new(grid),
             global: GlobalMotion::default(),
             motion_coder: {
-                let mut m = MotionCoder::new(cfg.rate_control.is_none());
-                m.set_temporal(cfg.temporal_motion && cfg.rate_control.is_none());
+                let mut m = MotionCoder::new(seq.continuous_cdfs);
+                m.set_temporal(cfg.temporal_motion);
                 m
             },
             b_tree: std::array::from_fn(|_| TreeContexts::default()),
@@ -899,7 +913,7 @@ impl Encoder {
         } else {
             (&mut self.aq_intra, &mut self.aq_intra_frames)
         };
-        let delta = if *frames >= 2 && self.cfg.frame_aq > 0.0 {
+        let delta = if *frames >= 2 && self.cfg.frame_aq != 0.0 {
             let ratio = (*avg / activity).log2();
             (self.cfg.frame_aq * ratio).round().clamp(
                 -f64::from(self.cfg.frame_aq_clamp),
@@ -915,6 +929,18 @@ impl Encoder {
         };
         *frames += 1;
         qp.saturating_add_signed(delta as i8)
+    }
+
+    /// Makes the contexts of every band written in this frame the carried ones; bands coded but
+    /// then dropped keep their old state, as the decoder's do.
+    fn commit_band_contexts(&mut self) {
+        for (i, pending) in self.band_pending.iter_mut().enumerate() {
+            if let Some((class, ctx)) = pending.take() {
+                if !self.segments[i].is_empty() {
+                    self.band_contexts[i].lock().expect("band contexts")[class] = ctx;
+                }
+            }
+        }
     }
 
     /// Start every band's carried contexts from the trained tables (an intra frame must not
@@ -973,7 +999,7 @@ impl Encoder {
         }
         watch.lap(&mut self.times, Stage::Prediction);
         let activity =
-            (self.cfg.frame_aq > 0.0 && self.rate.is_none() && !self.cfg.lossless).then(|| {
+            (self.cfg.frame_aq != 0.0 && self.rate.is_none() && !self.cfg.lossless).then(|| {
                 if inter {
                     self.inter_activity(frame)
                 } else {
@@ -985,10 +1011,12 @@ impl Encoder {
         self.motion_segment.clear();
         if !inter {
             self.motion_coder.reset();
+            self.motion_snapshot = None;
             self.reset_band_contexts();
         }
         if inter {
             let g = global;
+            self.motion_snapshot = self.rate.is_some().then(|| self.motion_coder.clone());
             // The field as decoded (offsets normalized to quarter pels).
             self.motion_segment = self.motion_coder.encode(&self.global, &g, &mut self.field);
         }
@@ -1122,6 +1150,10 @@ impl Encoder {
             ..FrameStats::default()
         };
         if repeated {
+            // Nothing of this frame is sent: its motion contexts must not have advanced.
+            if let Some(coder) = self.motion_snapshot.take() {
+                self.motion_coder = coder;
+            }
             let mut payload = Vec::new();
             FrameHeader {
                 frame_type: FrameType::Repeat,
@@ -1181,6 +1213,7 @@ impl Encoder {
                 });
             }
             self.write_bands(&mut payload, &mut stats);
+            self.commit_band_contexts();
             if let Some(segment) = loop_segment {
                 put_varint(&mut payload, segment.len() as u64);
                 payload.extend_from_slice(&segment);
@@ -1933,6 +1966,7 @@ impl Encoder {
             ..FrameStats::default()
         };
         self.write_bands(&mut payload, &mut stats);
+        self.commit_band_contexts();
         put_varint(out, payload.len() as u64);
         out.extend_from_slice(&payload);
         stats.bytes = out.len() - start;
@@ -2480,7 +2514,7 @@ impl Encoder {
             let i = by_size[t];
             let slot = &slots[i];
             if !pyramids[i].any() {
-                return Vec::new();
+                return (Vec::new(), None);
             }
             let plane = if slot.is_ll() && header.ll_prediction {
                 &comps[slot.comp].ll_res
@@ -2513,14 +2547,14 @@ impl Encoder {
                 block_log2,
                 slot.transposed(),
             );
-            if band_flag {
-                band_contexts[i].lock().expect("band contexts")[class] = ctx;
-            }
-            enc.finish()
+            (enc.finish(), band_flag.then_some((class, ctx)))
         });
-        for (&i, segment) in self.by_size.iter().zip(segments) {
+        self.band_pending.clear();
+        self.band_pending.resize_with(slots.len(), || None);
+        for (&i, (segment, pending)) in self.by_size.iter().zip(segments) {
             self.band_stats[i].bytes = segment.len();
             self.segments[i] = segment;
+            self.band_pending[i] = pending;
         }
         if let Some(stats) = &mut self.training {
             // The same bands again, recording their symbols.
@@ -2613,16 +2647,18 @@ impl Encoder {
         if field == self.field {
             return false;
         }
+        // Recoded from the state before the replaced section.
+        let mut coder = self.motion_snapshot.clone().unwrap_or_else(|| self.motion_coder.clone());
         let mut enc = RangeEncoder::new();
         let mut g = *global;
-        self.motion_coder
-            .code(&mut enc, &self.global, &mut g, &mut field);
+        coder.code(&mut enc, &self.global, &mut g, &mut field);
         let segment = enc.finish();
         let bytes =
             3 + 6 + varint_len(segment.len()) + segment.len() + self.slots.len().div_ceil(8);
         if 8.0 * bytes as f64 > cap_bits {
             return false;
         }
+        self.motion_coder = coder;
         self.field = field;
         self.motion_segment = segment;
         self.predict();

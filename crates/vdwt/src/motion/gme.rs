@@ -178,6 +178,15 @@ impl GlobalEstimator {
         let (cur, reference) = (&self.cur.quarter, &self.reference.quarter);
         let (w, h) = (cur.width(), cur.height());
         let (rw, rh) = (reference.width() as i32, reference.height() as i32);
+        // The frame's mean level change, at 256 times the sample scale, is left out of the inter
+        // error: an exposure ramp or fade moves the whole picture's level but keeps its
+        // structure, and the residual's LL band codes it cheaply. A cut changes levels unevenly,
+        // so it still fails block by block.
+        let mean = |p: &Plane<u8>| {
+            let n = (p.width() * p.height()).max(1) as f64;
+            p.rows().flatten().map(|&v| f64::from(v)).sum::<f64>() / n
+        };
+        let shift = (256.0 * (mean(cur) - mean(reference))).round() as i64;
         // Badly predicted blocks per row of blocks.
         let worse_per_row = pool.map(h / B, |row| {
             let by = row * B;
@@ -214,7 +223,7 @@ impl GlobalEstimator {
                 // Errors at 256 times the sample scale; the mean at 16 times (B² = 16).
                 let (mut inter, mut intra) = (0u32, 0u32);
                 for (&v, &r) in values.zip(&block) {
-                    inter += (256 * u32::from(v)).abs_diff(r);
+                    inter += (256 * i64::from(v) - i64::from(r) - shift).unsigned_abs() as u32;
                     intra += (16 * u32::from(v)).abs_diff(sum);
                 }
                 worse += usize::from(inter > 16 * intra + 256 * MARGIN * (B * B) as u32);
