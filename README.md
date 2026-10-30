@@ -58,6 +58,14 @@ Under the hood it is a block-free wavelet codec: an integer wavelet transform fo
 and a smooth motion mesh for prediction, so there are no blocking artifacts and every stage runs
 in parallel.
 
+Its strength is motion: on fast drone, FPV and action footage it needs far fewer bits than
+HEVC. Static content, such as talking heads, studio shots and screen-like scenes, is harder for a
+whole-frame wavelet, because sharp edges and fine text cost more to code without block-based intra
+prediction. VDWT closes much of that gap with tools built for still scenes: hierarchical B-frame
+groups when the camera is still, motion snapped to exactly zero for a locked-off camera, and
+identical frames sent as tiny Repeat frames. Even on static content its `ultraheavy` tier still
+needs fewer bits than hardware HEVC at the same quality.
+
 > [!IMPORTANT]
 > **Beta.** The bitstream format may still change between beta versions, so keep your source
 > footage rather than archiving only `.vdwt` streams.
