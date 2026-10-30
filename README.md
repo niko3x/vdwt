@@ -43,11 +43,6 @@ On a longer run of the bike ride (120 frames), VDWT against Intel's hardware HEV
 Hardware encoders are faster per frame (5 to 19 ms against VDWT's 54 ms single-thread for
 `realtime` at 1080p), but the bits they need are the cost a link pays on every frame.
 
-> [!IMPORTANT]
-> **VDWT is open source.** Use it under the AGPL-3.0, free for small businesses under the PolyForm
-> Small Business License, or under a commercial license. Prebuilt binaries are in the
-> [releases](../../releases).
-
 VDWT is a **hardware-aware, fully parallel video codec** built to compete with
 hardware-accelerated codecs such as HEVC, and to beat them on efficiency. It is designed from
 the ground up to run fast on small CPUs and to map directly onto GPUs, NPUs, FPGAs and ASICs,
@@ -69,6 +64,11 @@ needs fewer bits than hardware HEVC at the same quality.
 > [!IMPORTANT]
 > **Beta.** The bitstream format may still change between beta versions, so keep your source
 > footage rather than archiving only `.vdwt` streams.
+
+> [!IMPORTANT]
+> **VDWT is open source.** Use it under the AGPL-3.0, free for small businesses under the PolyForm
+> Small Business License, or under a commercial license. Prebuilt binaries are in the
+> [releases](../../releases).
 
 ## Why VDWT
 
