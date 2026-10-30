@@ -1,10 +1,10 @@
 # VDWT
 
-## Motocross FPV drone  1080p60  600 kbit/s
+## Forest FPV drone  1080p60  600 kbit/s
 
-**Left: VDWT `ultraheavy` 38.97 dB  Right: hardware HEVC 35.38 dB**
+**Left: VDWT `ultraheavy` 600 kbit/s, 33.79 dB  Right: hardware HEVC 695 kbit/s, 30.05 dB**
 
-![Motocross FPV at 600 kbit/s: VDWT against hardware HEVC](media/motocross_600k.gif)
+![Forest FPV drone at 600 kbit/s: VDWT against hardware HEVC](media/forest_600k.gif)
 
 ## Bike ride · 1080p60  731 kbit/s (equal bitrate)
 
@@ -188,19 +188,23 @@ bitrate. Quality is YUV-PSNR 6:1:1, (6·Y + U + V) / 8, averaged over all frames
 
 | Clip | Bitrate | VDWT | Hardware HEVC | Difference |
 |---|---|---|---|---|
+| Forest FPV drone (8 s) | 600 kbit/s (HEVC 695) | 33.79 dB | 30.05 dB | **+3.74 dB** |
 | Motocross FPV drone (8 s) | 1 Mbit/s | 40.27 dB | 36.98 dB | **+3.29 dB** |
 | Motocross FPV drone | 600 kbit/s | 38.97 dB | 35.38 dB | **+3.59 dB** |
 | Bike, first-person ride (10 s) | 1 Mbit/s | 33.23 dB | 31.81 dB | **+1.42 dB** |
 | Bike | 731 kbit/s | 32.62 dB | 30.47 dB | **+2.15 dB** |
 
 At 600 kbit/s the hardware encoder could not go below about 730 kbit/s on the bike clip, so
-that row compares both at 731 kbit/s. The GIFs at the top are 3-second excerpts at 25 fps; the
+that row compares both at 731 kbit/s; on the forest clip its lowest rate was 695 kbit/s, so
+HEVC has 16% more bits than VDWT in that row. The forest clip is the last 16 s of the source
+played at 2× speed. The GIFs at the top are 3-second excerpts at 25 fps; the
 full-length 60 fps side-by-side videos are attached to the release.
 Benchmarks against software encoders (x265) on public test sequences will follow.
 
 Footage: [Motocross FPV drone](https://www.pexels.com/video/motocross-fpv-drone-18326007/) by
-Eno Eltora and [Bike](https://www.pexels.com/video/bike-26956379/) by Adrián Vizuete Moreno, both
-from Pexels.
+Eno Eltora, [Bike](https://www.pexels.com/video/bike-26956379/) by Adrián Vizuete Moreno and
+[Forest drone](https://www.pexels.com/video/dynamic-drone-footage-of-forest-path-at-high-speed-30324643/)
+by Lukáš Vaňátko, all from Pexels.
 
 ## License
 
