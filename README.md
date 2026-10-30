@@ -65,11 +65,6 @@ needs fewer bits than hardware HEVC at the same quality.
 > **Beta.** The bitstream format may still change between beta versions, so keep your source
 > footage rather than archiving only `.vdwt` streams.
 
-> [!IMPORTANT]
-> **VDWT is open source.** Use it under the AGPL-3.0, free for small businesses under the PolyForm
-> Small Business License, or under a commercial license. Prebuilt binaries are in the
-> [releases](../../releases).
-
 ## Why VDWT
 
 - **Better pictures at low bitrates.** At equal bitrate VDWT beats hardware HEVC by 1.4 to
@@ -245,3 +240,8 @@ Contributor License Agreement; see [CONTRIBUTING.md](CONTRIBUTING.md).
 Bug reports and results on your own footage are welcome in the
 [issues](../../issues). Please include the command line, the `vdwt info` output and, if you can,
 a short clip that shows the problem.
+
+> [!IMPORTANT]
+> **VDWT is open source.** Use it under the AGPL-3.0, free for small businesses under the PolyForm
+> Small Business License, or under a commercial license. Prebuilt binaries are in the
+> [releases](../../releases).
