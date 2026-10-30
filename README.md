@@ -61,7 +61,9 @@ groups when the camera is still, motion snapped to exactly zero for a locked-off
 identical frames sent as tiny Repeat frames. Even on static content its `ultraheavy` tier still
 needs fewer bits than hardware HEVC at the same quality.
 
-The bitstream format is not frozen yet, so a stream from one version may not decode with the next.
+> [!IMPORTANT]
+> VDWT is in beta: the bitstream format is not frozen yet, so a stream from one version may not
+> decode with the next.
 
 ## Why VDWT
 
@@ -238,8 +240,3 @@ Contributor License Agreement; see [CONTRIBUTING.md](CONTRIBUTING.md).
 Bug reports and results on your own footage are welcome in the
 [issues](../../issues). Please include the command line, the `vdwt info` output and, if you can,
 a short clip that shows the problem.
-
-> [!IMPORTANT]
-> **VDWT is open source.** Use it under the AGPL-3.0, free for small businesses under the PolyForm
-> Small Business License, or under a commercial license. Prebuilt binaries are in the
-> [releases](../../releases).
