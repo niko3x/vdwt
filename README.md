@@ -61,9 +61,7 @@ groups when the camera is still, motion snapped to exactly zero for a locked-off
 identical frames sent as tiny Repeat frames. Even on static content its `ultraheavy` tier still
 needs fewer bits than hardware HEVC at the same quality.
 
-> [!IMPORTANT]
-> **Beta.** The bitstream format may still change between beta versions, so keep your source
-> footage rather than archiving only `.vdwt` streams.
+The bitstream format is not frozen yet, so a stream from one version may not decode with the next.
 
 ## Why VDWT
 
