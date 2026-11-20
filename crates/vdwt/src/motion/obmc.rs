@@ -135,6 +135,8 @@ struct Scratch {
     tmp: Vec<i16>,
     /// Portable vertical pass accumulators.
     acc: Vec<i32>,
+    /// One translation over a single cell whose four nodes agree.
+    cell: Vec<u16>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -200,13 +202,26 @@ fn obmc<const T: usize>(
                 );
             }
         };
-        node(&mut sc, 0, 0);
-        node(&mut sc, 1, 0);
+        // A cell whose four nodes share one vector (or are all intra) blends to that one
+        // translation; a node's own translation is needed only beside a cell that does not.
+        let uniform = |i: usize| {
+            let ns = [j * nx + i, j * nx + i + 1, (j + 1) * nx + i, (j + 1) * nx + i + 1];
+            let intra = field.intra[ns[0]];
+            ns.iter().all(|&n| field.intra[n] == intra)
+                && (intra || ns.iter().all(|&n| field.mv[n] == field.mv[ns[0]]))
+        };
+        let needed = |k: usize| (k > 0 && !uniform(k - 1)) || (k < cells && !uniform(k));
+        if needed(0) {
+            node(&mut sc, 0, 0);
+            node(&mut sc, 1, 0);
+        }
         let cs = cs as u32;
         let v0 = (ya & (cs as usize - 1)) as u32;
         for i in 0..cells {
-            node(&mut sc, 0, i + 1);
-            node(&mut sc, 1, i + 1);
+            if needed(i + 1) {
+                node(&mut sc, 0, i + 1);
+                node(&mut sc, 1, i + 1);
+            }
             let x0 = i * cs as usize;
             let len = (cs as usize).min(w - x0);
             // A node's samples for this cell: from the cell's first column, with the node's
@@ -216,6 +231,43 @@ fn obmc<const T: usize>(
                 let width = s.len() / n_rows;
                 (&s[x0 - first..], width)
             };
+            if uniform(i) {
+                // All four weights multiply one translation and sum to 2^2c, so the blend is
+                // exactly (s + 2) >> 2: one translation instead of four.
+                let n = j * nx + i;
+                let one: (&[u16], usize) = if field.intra[n] {
+                    sc.cell.clear();
+                    sc.cell.resize(len * n_rows, 512);
+                    (&sc.cell, len)
+                } else if needed(i) {
+                    at(0, i)
+                } else {
+                    sc.cell.resize(len * n_rows, 0);
+                    let d = field.mv[n].map(|m| m << (PHASE_BITS - f));
+                    translate::<T>(
+                        reference,
+                        height,
+                        x0,
+                        ya..yb,
+                        d,
+                        taps,
+                        simd,
+                        &mut sc.edge,
+                        &mut sc.tmp,
+                        &mut sc.acc,
+                        &mut sc.cell,
+                    );
+                    (&sc.cell, len)
+                };
+                for yy in (ya..yb).filter(|&yy| wanted(yy)) {
+                    let r = yy - ya;
+                    let src = &one.0[r * one.1..r * one.1 + len];
+                    for (d, &v) in out.row_mut(yy)[x0..x0 + len].iter_mut().zip(src) {
+                        *d = ((u32::from(v) + 2) >> 2).min(255) as u8;
+                    }
+                }
+                continue;
+            }
             let s = [at(0, i), at(0, i + 1), at(1, i), at(1, i + 1)];
             // 16-bit products need cs ≤ 32.
             let simd_len = simd.filter(|_| cs <= 32).map_or(0, |_| len & !7);
