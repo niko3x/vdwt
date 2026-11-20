@@ -981,6 +981,13 @@ The encoder tracks the mean global displacement over the frame corners, smoothed
 - medium, heavy and ultraheavy run the adaptive probe when the shortcut kept 32 (medium and heavy
   since 2026-10-28: forest −3.6/−3.8%, canyon medium −1.6%, nothing worse); light and realtime do
   not, as the finer grid costs them 36–46% more encode time on forest;
+- under rate control the probes run as the stream will (rate control set, so at its qp; they
+  used the command line's `--qp 32` before), and a moving camera below 0.03 bits per pixel gets
+  at least the 32-pixel grid (2026-11-20): motion was 42% of a 512×288 P-frame at 80 kbit/s on 16
+  pixels; YUV-PSNR 6:1:1 medium / ultraheavy +0.52 / +0.68 dB on that RC-car clip, coast 720p at
+  400 kbit/s +0.17 / +0.27, forest +0.02 / +0.04. Still cameras keep their rule (a talking head
+  with a moving speaker lost 0.2 dB at 32, while a720 gained 0.2: no probe signal told them
+  apart). Above the threshold canyon wants the finer grid (−0.22 dB at 32 at 1.5 Mbit/s);
 - ultraheavy pairs static frames as B even when the motion share is small; the B qp comes from
   its share of the group budget;
 - identical source frames become 7-byte Repeat frames once the picture is 45 dB, so a still

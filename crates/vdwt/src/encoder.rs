@@ -3234,6 +3234,25 @@ pub fn probe_static_mesh(cfg: &EncoderConfig, frames: &[&Frame]) -> Result<Optio
     }))
 }
 
+/// The coarsest motion grid a rate-controlled stream of a moving camera may use (log2 of the
+/// node spacing; 0, no floor, at a fixed qp). At low rates motion takes a large share of the
+/// frame (42% of a 512×288 P-frame at 80 kbit/s on 16 pixels), and below [`LOW_RATE_BPP`] the
+/// 32-pixel grid beat the finer one on every moving clip measured (YUV-PSNR 6:1:1, medium /
+/// ultraheavy: 512×288 RC car at 80 kbit/s +0.52 / +0.68 dB, coast 720p at 400 kbit/s +0.17 /
+/// +0.27, forest +0.02 / +0.04); above it a finer one can win (canyon 720p at 1.5 Mbit/s: −0.22
+/// dB at 32). Still cameras keep their own grid: a talking head lost 0.2 dB at 32 pixels.
+pub fn rate_mesh_floor(cfg: &EncoderConfig) -> u32 {
+    let Some(rc) = &cfg.rate_control else {
+        return 0;
+    };
+    let fps = f64::from(cfg.fps_num) / f64::from(cfg.fps_den.max(1));
+    let bpp = rc.bitrate as f64 / (fps * (cfg.width * cfg.height) as f64);
+    if bpp < LOW_RATE_BPP { 5 } else { 0 }
+}
+
+/// Bits per pixel below which [`rate_mesh_floor`] holds the grid at 32 pixels.
+pub const LOW_RATE_BPP: f64 = 0.03;
+
 /// The motion grid for a sequence, from a probe of its first frames (§10.4.1): half the
 /// configured spacing when the probe's last P-frame field has many single-node leaves (the
 /// field wants resolution) yet changes smoothly from node to node (not the chaos of foliage

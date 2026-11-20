@@ -114,7 +114,8 @@ MOTION OPTIONS:
     --intra-period 0                frames between intra frames (0: only the first and cuts)
     --intra-qp-offset -8            added to --qp for intra frames (ultraheavy: -7)
     --mesh auto                     motion node spacing in pixels (8, 16, 32 or 64); auto: 32 when
-                                    the shorter side has 480 pixels or more, otherwise 16
+                                    the shorter side has 480 pixels or more, otherwise 16, and at
+                                    least 32 for a moving camera below 0.03 bits per pixel
     --filter cubic                  interpolation: cubic, bilinear, sharp or smooth
     --prediction auto               motion compensation: auto (per frame), warp, overlapped
     --global-only                   global motion only, no per-node refinement
@@ -910,8 +911,11 @@ impl CodecOptions {
         info: &Y4mInfo,
         qp: u8,
         frames: &[Frame],
+        rate_control: Option<RateControl>,
     ) -> Result<EncoderConfig, String> {
         let mut cfg = self.config(info, qp);
+        // Before the probes: they encode trial frames, and must do so as the stream will.
+        cfg.rate_control = rate_control;
         cfg.total_frames = Some(frames.len().min(u16::MAX as usize) as u16);
         // A hard cut into the opening I-frame leaves that reference carrying the whole shot;
         // spend the extra bits on it. Softer changes (a moderate scene shift) do not pay.
@@ -930,6 +934,12 @@ impl CodecOptions {
             let head: Vec<&Frame> = frames.iter().take(TRIAL_FRAMES).collect();
             let static_mesh =
                 vdwt::encoder::probe_static_mesh(&cfg, &head).map_err(|e| e.to_string())?;
+            if static_mesh.is_none() {
+                // A moving camera at a low rate: the coarse grid, which the adaptive probe (at
+                // the stream's own rate) may still halve. A still camera keeps its own rule: a
+                // talking head with a moving speaker lost 0.2 dB at 32 pixels.
+                cfg.mesh_log2 = cfg.mesh_log2.max(vdwt::encoder::rate_mesh_floor(&cfg));
+            }
             match static_mesh {
                 // A static camera below 50 fps already has the finer grid.
                 Some(m) if m < cfg.mesh_log2 => cfg.mesh_log2 = m,
@@ -1111,7 +1121,13 @@ fn encode(mut args: Args) -> Result<(), String> {
     let (info, frames) = read_frames(input, max_frames)?;
     let frame_rate = fps(&info);
 
-    let mut cfg = opts.config_for(&info, qp, &frames)?;
+    let rate_control = schedule.as_ref().map(|schedule| {
+        let mut rc = RateControl::new(schedule[0].1);
+        rc.max_delay_frames = max_delay;
+        rc.quality_cap = quality_cap;
+        rc
+    });
+    let mut cfg = opts.config_for(&info, qp, &frames, rate_control)?;
     cfg.postfilter = match post {
         PostFilter::Auto => postfilter::PostFilterMode::Auto,
         PostFilter::BandWide(a) => postfilter::PostFilterMode::Fixed(
@@ -1119,12 +1135,6 @@ fn encode(mut args: Args) -> Result<(), String> {
         ),
         _ => postfilter::PostFilterMode::Off,
     };
-    if let Some(schedule) = &schedule {
-        let mut rc = RateControl::new(schedule[0].1);
-        rc.max_delay_frames = max_delay;
-        rc.quality_cap = quality_cap;
-        cfg.rate_control = Some(rc);
-    }
     cfg.short_headers = cfg.rate_control.is_none();
     let mut encoder = Encoder::new(cfg).map_err(|e| e.to_string())?;
     if frames.len() > 1 {
@@ -1738,7 +1748,7 @@ fn rd(mut args: Args) -> Result<(), String> {
     println!("  qp      kbps     bpp   PSNR-Y  PSNR-U  PSNR-V  PSNR-YUV   enc ms  dec ms");
     for qp in qps {
         let mut encoder =
-            Encoder::new(opts.config_for(&info, qp, &frames)?).map_err(|e| e.to_string())?;
+            Encoder::new(opts.config_for(&info, qp, &frames, None)?).map_err(|e| e.to_string())?;
         let mut decoder =
             Decoder::with_threads(encoder.sequence_header().clone(), opts.isa, opts.threads)
                 .map_err(|e| e.to_string())?;
@@ -1836,7 +1846,7 @@ fn pred_dump(mut args: Args) -> Result<(), String> {
     args.finish(2)?;
     let (input, output) = (&args.positional[0], &args.positional[1]);
     let (info, frames) = read_frames(input, max_frames)?;
-    let cfg = opts.config_for(&info, qp, &frames)?;
+    let cfg = opts.config_for(&info, qp, &frames, None)?;
     let mut encoder = Encoder::new(cfg).map_err(|e| e.to_string())?;
     let mut writer =
         Y4mWriter::create(Path::new(output), &info).map_err(|e| format!("{output}: {e}"))?;
