@@ -24,6 +24,7 @@ A full run is about 20 minutes on the i5-10210U (126 encodes, three at a time); 
 |---|---|
 | `592f920.json` | VDWT at 592f920 (rate-aware motion grid), the baseline |
 | `49c379e.json` | VDWT at 49c379e (joint band streams, VERSION 12) |
+| `e2e268a.json` | VDWT at e2e268a (plus moving-cut keyframes and chroma 0.45 at 720p): −2.1 to −2.9% PSNR, −4.8 to −5.5% VMAF against 592f920; ultraheavy −1.6 / −0.5% against x265 (see `overnight-2026-11-21.md`) |
 | `ref_x265.json` | x265 4.3 `--preset medium --tune zerolatency`, CBR, VBV of three frames, no B-frames |
 | `ref_svtav1.json` | SVT-AV1 preset 8, low-delay (`--pred-struct 1`), CBR, 3-frame buffer |
 | `ref_x265qp.json` | x265 as above at fixed QP 22–37 (coaster, oldtown, aerial, kristen only) |
