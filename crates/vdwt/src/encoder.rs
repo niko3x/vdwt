@@ -50,10 +50,23 @@ pub const DEFAULT_RECON_OFFSET: f64 = 0.2;
 pub const DEFAULT_INTER_ROUNDING: f64 = 0.12;
 /// Default δ for P-frames (see [`EncoderConfig::inter_recon_offset`]).
 pub const DEFAULT_INTER_RECON_OFFSET: f64 = 0.1;
-/// Default chroma step multiplier (see [`EncoderConfig::chroma_step_scale`]): 0.4 is the
-/// optimum on YUV-PSNR 6:1:1, 10–11% fewer bits on every tier than 0.95 (2026-10-28; 0.95 and
-/// 0.7 were tuned on the VMAF hybrid and on PSNR-Y, which do not see what chroma costs).
+/// Default chroma step multiplier below 480 lines (see [`default_chroma_step_scale`]): 0.4 is
+/// the optimum on YUV-PSNR 6:1:1, 10–11% fewer bits on every tier than 0.95 (2026-10-28; 0.95
+/// and 0.7 were tuned on the VMAF hybrid and on PSNR-Y, which do not see what chroma costs).
 pub const DEFAULT_CHROMA_STEP_SCALE: f64 = 0.4;
+
+/// The default chroma step multiplier for a frame size: 0.45 when the shorter side has 480
+/// lines or more. On the ten-clip 720p benchmark gate (2026-11-21) 0.45 beat 0.4 on every tier
+/// and mode, CBR and fixed qp: −0.9 to −1.3% BD-rate on YUV-PSNR 6:1:1, −3.4 to −4.1% on VMAF,
+/// no clip worse; 0.5 and 0.55 gained more VMAF but cost crowd_run 1–2%. At 512×288 the
+/// coarser chroma lost (2.9% at 0.45, 6–9% at 0.5–0.55): [`DEFAULT_CHROMA_STEP_SCALE`] stays.
+pub fn default_chroma_step_scale(width: usize, height: usize) -> f64 {
+    if width.min(height) >= 480 {
+        0.45
+    } else {
+        DEFAULT_CHROMA_STEP_SCALE
+    }
+}
 /// Above this share of badly predicted blocks the global model's scene-cut verdict needs no
 /// confirmation by the prediction.
 const CERTAIN_CUT: f64 = 0.75;
@@ -231,7 +244,7 @@ impl EncoderConfig {
             recon_offset: DEFAULT_RECON_OFFSET,
             inter_rounding: DEFAULT_INTER_ROUNDING,
             inter_recon_offset: DEFAULT_INTER_RECON_OFFSET,
-            chroma_step_scale: DEFAULT_CHROMA_STEP_SCALE,
+            chroma_step_scale: default_chroma_step_scale(width, height),
             parent_contexts: true,
             ll_prediction: true,
             isa: Isa::best(),

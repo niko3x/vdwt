@@ -16,7 +16,7 @@ use std::time::{Duration, Instant};
 use vdwt::bitstream;
 use vdwt::dwt::{self, Dwt53, Geometry, MAX_LEVELS, Orient, Wavelet};
 use vdwt::encoder::{
-    DEFAULT_CHROMA_STEP_SCALE, DEFAULT_EFFORT, DEFAULT_INTER_RECON_OFFSET, DEFAULT_INTER_ROUNDING,
+    DEFAULT_EFFORT, DEFAULT_INTER_RECON_OFFSET, DEFAULT_INTER_ROUNDING,
     DEFAULT_INTRA_QP_OFFSET, DEFAULT_ISOLATED_THRESHOLD, DEFAULT_RECON_OFFSET, DEFAULT_ROUNDING,
     DEFAULT_SCENE_CUT, MAX_THREADS,
 };
@@ -101,7 +101,8 @@ CODEC OPTIONS:
     --recon-offset 0.2              reconstruction δ
     --inter-rounding 0.12           θ for P-frames
     --inter-recon-offset 0.1        δ for P-frames
-    --chroma-scale 0.4              chroma step multiplier (larger favours luma)
+    --chroma-scale 0.45             chroma step multiplier (larger favours luma); default 0.45,
+                                    0.4 below 480 lines
     --no-parent                     no parent-band contexts
     --no-ll-pred                    no LL prediction
     --lossless                      exact reconstruction
@@ -761,7 +762,8 @@ struct CodecOptions {
     recon_offset: f64,
     inter_rounding: f64,
     inter_recon_offset: f64,
-    chroma_scale: f64,
+    /// `None`: the frame size's default.
+    chroma_scale: Option<f64>,
     parent_contexts: bool,
     ll_prediction: bool,
     lossless: bool,
@@ -849,7 +851,10 @@ impl CodecOptions {
             recon_offset: args.get("recon-offset", DEFAULT_RECON_OFFSET)?,
             inter_rounding: args.get("inter-rounding", DEFAULT_INTER_ROUNDING)?,
             inter_recon_offset: args.get("inter-recon-offset", DEFAULT_INTER_RECON_OFFSET)?,
-            chroma_scale: args.get("chroma-scale", DEFAULT_CHROMA_STEP_SCALE)?,
+            chroma_scale: args
+                .string("chroma-scale")
+                .map(|v| v.parse().map_err(|_| format!("invalid value `{v}` for --chroma-scale")))
+                .transpose()?,
             parent_contexts: !args.flag("no-parent"),
             ll_prediction: !args.flag("no-ll-pred"),
             lossless: args.flag("lossless"),
@@ -970,7 +975,9 @@ impl CodecOptions {
         cfg.inter_rounding = self.inter_rounding;
         cfg.inter_recon_offset = self.inter_recon_offset;
         cfg.recon_offset = self.recon_offset;
-        cfg.chroma_step_scale = self.chroma_scale;
+        if let Some(scale) = self.chroma_scale {
+            cfg.chroma_step_scale = scale;
+        }
         cfg.parent_contexts = self.parent_contexts;
         cfg.ll_prediction = self.ll_prediction;
         cfg.isa = self.isa;
