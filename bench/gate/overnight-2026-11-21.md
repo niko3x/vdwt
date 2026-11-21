@@ -5,7 +5,10 @@ Every change below was judged by the benchmark gate (`bench/gate/README.md`): 10
 medium and ultraheavy, BD-rate on YUV-PSNR 6:1:1 and VMAF. A change ships only when the mean
 improves and no clip loses more than 1%. Negative numbers are fewer bits at equal quality.
 
-## Shipped (local commits on `format4`, not pushed)
+## Shipped
+
+Commit hashes are the development branch's; the public `main` carries the same changes under
+its own hashes.
 
 | commit | change | gate result |
 |---|---|---|
