@@ -3217,8 +3217,9 @@ pub(crate) fn fine_ramp(qp: u8) -> f64 {
 
 /// A non-reference B-frame's qp over its anchor's: its quality only shows, while the anchors
 /// carry every later frame (best measured with adaptive groups: 9, with 6 for the middle frame,
-/// §10.4).
-pub const B_QP_OFFSET: u8 = 11;
+/// §10.4; the 2026-11-21 benchmark gate confirmed 9 against 7 and 11, which cost the RC-car clip
+/// 1.9% at fixed qp). The command line has always used 9.
+pub const B_QP_OFFSET: u8 = 9;
 /// The qp offset of a group's middle B-frame, a reference for the others.
 pub const B_REF_QP_OFFSET: u8 = 6;
 
