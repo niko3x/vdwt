@@ -288,6 +288,7 @@ The traversal is Z-order within blocks, and blocks go in raster order. That way 
 - Per-code-block segments would cost a length and a flush for each of about 400 code-blocks per frame. At 60 fps that overhead alone is 50–200 kbps, which is fatal at low bitrate.
 - **Parallelism:** 42 bands per 720p frame. The encoder can code them all in parallel. The decoder goes resolution by resolution and runs in parallel within each, because children need decoded parents.
 - **Loss resilience:** a lost band blurs. Finer segmentation (rows of blocks within a band) is the packetization knob.
+- **Joint band stream (VERSION 12, 2026-11-20):** a frame may instead code every band in one range stream: a mode bit, each band's presence (adaptive, per layout class), then the present bands in coding order from the same starting contexts, so every band leaves the same carried contexts as its segment would. It saves each segment's termination and the layout's lengths: measured by re-coding real frames, 4.7% of the stream at 288p 80 kbit/s (about 400 bytes per frame), 3.4% at 150k, 1.8% at 720p 400k, 0.7% at 720p 1.5M. The encoder uses it when it is smaller and the separate bands total at most 4 KB, because the joint stream decodes on one thread: free single-threaded, but 0.6–1.0 ms slower per 720p frame on four x86 threads at 2–7 KB. CBR, YUV-PSNR 6:1:1, medium / ultraheavy: Luckfox mid 80k +0.12 / +0.11 dB, Luckfox start 80k +0.09 / +0.13, 150k +0.10 / +0.11, a720 400k +0.11 / +0.04, b720 +0.08 / +0.09, coast +0.03 / +0.04; fixed qp 1–2% smaller at 40–50 (coast heavy qp 40 −0.9%, b720 light qp 50 −1.8%), unchanged at qp 20. Encoder-side the bands still code in parallel; the joint stream is a serial re-coding at write time.
 
 ### 5.3 Single-pass rate control (implemented: `ratectl.rs`)
 **Estimator: frame bits at any qp without quantizing or coding.**
@@ -564,13 +565,14 @@ four-frame group that the format still allows (three frames of latency) is not c
 
 ```
 stream    := sequence_header frame*
-sequence  := "VDWT" version:u8(=10; 11 with the opt-in temporal motion trial; 9 still decodes) width:u16 height:u16 chroma_format:u8(=1, 4:2:0)
+sequence  := "VDWT" version:u8(=12; 10 and 11 [opt-in temporal motion trial] and 9 still decode) width:u16 height:u16 chroma_format:u8(=1, 4:2:0)
              bit_depth:u8(=8) kernel:u8(0 = 5/3, 1 = 9/7 with 3 fraction bits)
              luma_levels:u8 chroma_levels:u8
              block_log2:u8 mesh_log2:u8(3..6)
              flags:u8(bit0 guide, bit1 continuous motion-tree CDFs,
                       bit2 range-coded band layout, bit3 per-band carried CDFs,
-                      bit4 reserved, bit5 temporal motion trial [opt-in, VERSION 11])
+                      bit4 reserved, bit5 temporal motion trial [opt-in, VERSION 11],
+                      bit6 joint band streams [VERSION 12])
              fps_num:u32 fps_den:u32
              luma_weights:u16[1+3·Ly] chroma_weights:u16[1+3·Lc]       (Q12 step weights)
 frame     := varint(len) payload
@@ -597,8 +599,11 @@ payload   := type_frame:u8(bits0-1 type: 0 = I, 1 = Repeat, 2 = P, 3 = B;
                                                                         B-frames, searched modes
              [blend: varint(len) root choices]                          B-frames, blend mode
              layout: varint(len) range-coded length of every band, in coding order
+                     (with flag bit 6: first a raw mode bit 0)
              segments: range-coded band data, concatenated in coding order; layout gives the
                        length of each, and length 0 means the band is absent
+             | joint: varint(len) one range stream: mode bit 1, a presence symbol per band,
+                      then every present band in coding order       (flag bit 6 only)
              [loop: varint(len) loop filter]                            if flag bit 5
 loop      := per plane Y, U, V (bits MSB first): on:1, then if on 12 coefficient
              differences as signed Exp-Golomb codes (0, 1, −1, 2, …), §5.4

@@ -23,6 +23,8 @@ pub const MAGIC: [u8; 4] = *b"VDWT";
 pub const VERSION: u8 = 10;
 /// Streams that use the opt-in temporal motion predictor write this version.
 pub const VERSION_TEMPORAL: u8 = 11;
+/// Streams whose frames may code every band in one range stream (`joint_bands`).
+pub const VERSION_JOINT: u8 = 12;
 /// Largest accepted frame width or height.
 pub const MAX_DIMENSION: usize = 16384;
 
@@ -148,6 +150,10 @@ pub struct SequenceHeader {
     /// Whether P-frames trial the previous frame's offsets as an alternative motion predictor
     /// (VERSION 11, fixed-qp).
     pub temporal_motion: bool,
+    /// Whether a frame's band section may be one range stream holding every band (VERSION 12):
+    /// the section's first bit chooses it per frame. Separate segments cost a termination each
+    /// plus the layout's lengths, about 5% of a 400-byte frame.
+    pub joint_bands: bool,
 }
 
 impl SequenceHeader {
@@ -157,7 +163,9 @@ impl SequenceHeader {
 
     pub fn write(&self, out: &mut Vec<u8>) {
         out.extend_from_slice(&MAGIC);
-        out.push(if self.temporal_motion {
+        out.push(if self.joint_bands {
+            VERSION_JOINT
+        } else if self.temporal_motion {
             VERSION_TEMPORAL
         } else {
             VERSION
@@ -179,7 +187,8 @@ impl SequenceHeader {
                 | (u8::from(self.layout_coding) << 2)
                 | (u8::from(self.band_contexts) << 3)
                 | (u8::from(self.temporal_mv) << 4)
-                | (u8::from(self.temporal_motion) << 5),
+                | (u8::from(self.temporal_motion) << 5)
+                | (u8::from(self.joint_bands) << 6),
         ]);
         out.extend_from_slice(&self.fps_num.to_le_bytes());
         out.extend_from_slice(&self.fps_den.to_le_bytes());
@@ -195,7 +204,7 @@ impl SequenceHeader {
             return Err(Error::InvalidData("not a VDWT stream"));
         }
         let version = r.u8()?;
-        if !matches!(version, 9 | 10 | VERSION_TEMPORAL) {
+        if !matches!(version, 9 | 10 | VERSION_TEMPORAL | VERSION_JOINT) {
             return Err(Error::Unsupported("stream version"));
         }
         let (width, height) = (usize::from(r.u16()?), usize::from(r.u16()?));
@@ -223,7 +232,9 @@ impl SequenceHeader {
             return Err(Error::InvalidData("motion grid spacing"));
         }
         let flags = r.u8()?;
-        let flag_mask = if version >= 11 {
+        let flag_mask = if version >= 12 {
+            0b1101111
+        } else if version >= 11 {
             0b111111
         } else if version == 10 {
             0b11111
@@ -239,6 +250,7 @@ impl SequenceHeader {
         let band_contexts = version >= 10 && flags & 0b1000 != 0;
         let temporal_mv = version == 10 && flags & 0b10000 != 0;
         let temporal_motion = version >= 11 && flags & 0b100000 != 0;
+        let joint_bands = version >= 12 && flags & 0b1000000 != 0;
         let (fps_num, fps_den) = (r.u32()?, r.u32()?);
         let mut weights = |levels: usize| {
             (0..1 + 3 * levels)
@@ -265,6 +277,7 @@ impl SequenceHeader {
             band_contexts,
             temporal_mv,
             temporal_motion,
+            joint_bands,
         };
         Ok((header, r.position()))
     }
@@ -546,6 +559,7 @@ mod tests {
             band_contexts: false,
             temporal_mv: false,
             temporal_motion: false,
+            joint_bands: true,
         }
     }
 

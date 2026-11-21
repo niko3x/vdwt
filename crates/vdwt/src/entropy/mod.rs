@@ -12,5 +12,8 @@ pub(crate) use band::{
     code_band,
 };
 pub use cdf::{Cdf, MAX_SYMBOLS, MIN_PROB, PROB_BITS, PROB_ONE};
-pub(crate) use layout::{decode as decode_layout, encode as encode_layout};
+pub(crate) use layout::{
+    decode as decode_layout, decode_from as decode_layout_from, decode_presence,
+    encode as encode_layout, encode_into as encode_layout_into, encode_presence,
+};
 pub use range::{RangeDecoder, RangeEncoder};

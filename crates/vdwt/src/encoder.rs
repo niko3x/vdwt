@@ -21,7 +21,7 @@ use crate::codec::{self, BandSlot, LevelBands};
 use crate::dwt::d97::{ForwardJob, InverseJob};
 use crate::dwt::{BAND_LOG2, BlockMap, Dwt97, MAX_LEVELS, Orient, Transform, Wavelet};
 use crate::entropy::{
-    Contexts, Guide, Parent, RangeEncoder, Recorder, Rect, SigPyramid, code_band, encode_layout,
+    Contexts, Guide, Parent, RangeEncoder, Recorder, Rect, SigPyramid, code_band, encode_layout, encode_layout_into, encode_presence,
 };
 use crate::error::{Error, Result};
 use crate::loopfilter::{self, Coefs};
@@ -490,6 +490,9 @@ pub struct Encoder {
     guides: Vec<Option<Guide>>,
     /// One coded segment per band (empty when the band is all zero or dropped).
     segments: Vec<Vec<u8>>,
+    /// The frame's joint band stream, once built for the current `segments` (see
+    /// `band_section`).
+    joint: Option<Vec<u8>>,
     histograms: Vec<MagnitudeHistogram>,
     band_stats: Vec<BandStats>,
     rate: Option<RateController>,
@@ -660,6 +663,7 @@ impl Encoder {
             band_contexts: true,
             temporal_mv: false,
             temporal_motion: cfg.temporal_motion,
+            joint_bands: true,
         };
         let slots = codec::band_slots(&seq);
         let comps = std::array::from_fn(|comp| {
@@ -731,6 +735,7 @@ impl Encoder {
             level_bands: std::array::from_fn(|comp| LevelBands::of(&slots, comp)),
             guides: Vec::with_capacity(slots.len()),
             segments: vec![Vec::new(); slots.len()],
+            joint: None,
             histograms: Vec::with_capacity(slots.len()),
             band_stats: Vec::with_capacity(slots.len()),
             rate: cfg
@@ -1126,10 +1131,9 @@ impl Encoder {
         self.code_bands(&header);
         watch.lap(&mut self.times, Stage::Entropy);
 
-        let coded_bits = 8.0
-            * (2 + self.fixed_bytes(inter)
-                + self.layout_cost()
-                + self.segments.iter().map(|s| s.len()).sum::<usize>()) as f64;
+        // What the band section will cost as written, so the rate model learns the joint
+        // stream's saving too.
+        let coded_bits = 8.0 * (2 + self.fixed_bytes(inter) + self.band_section(&header).1) as f64;
         let (dropped_bands, repeated) = match plan {
             Some(p) => {
                 let (dropped, mut overflow) = self.fit_cap(p.cap, inter);
@@ -1212,7 +1216,7 @@ impl Encoder {
                     prediction_psnr: prediction_psnr.unwrap_or_default(),
                 });
             }
-            self.write_bands(&mut payload, &mut stats);
+            self.write_bands(&header, &mut payload, &mut stats);
             self.commit_band_contexts();
             if let Some(segment) = loop_segment {
                 put_varint(&mut payload, segment.len() as u64);
@@ -1965,7 +1969,7 @@ impl Encoder {
             }),
             ..FrameStats::default()
         };
-        self.write_bands(&mut payload, &mut stats);
+        self.write_bands(&header, &mut payload, &mut stats);
         self.commit_band_contexts();
         put_varint(out, payload.len() as u64);
         out.extend_from_slice(&payload);
@@ -2217,20 +2221,108 @@ impl Encoder {
     fn encode_layout(&self) -> Vec<u8> {
         let lengths: Vec<usize> = self.segments.iter().map(Vec::len).collect();
         let classes: Vec<usize> = self.slots.iter().map(|s| s.class).collect();
-        encode_layout(&lengths, &classes)
+        if self.seq.joint_bands {
+            // Mode bit 0: separate segments follow.
+            let mut enc = RangeEncoder::new();
+            enc.encode_bits(1, 0);
+            encode_layout_into(&mut enc, &lengths, &classes);
+            enc.finish()
+        } else {
+            encode_layout(&lengths, &classes)
+        }
     }
 
-    /// Appends the layout section and the band segments. The layout's lengths delimit them.
-    fn write_bands(&self, payload: &mut Vec<u8>, stats: &mut FrameStats) {
+    /// Every written band in one range stream (mode bit 1, then each band's presence, then the
+    /// present bands in coding order), from the same starting contexts as their segments, so
+    /// the contexts each band leaves behind are the same.
+    fn joint_bands(&self, header: &FrameHeader) -> Vec<u8> {
+        let inter = header.frame_type.predicted();
+        let present: Vec<bool> = self.segments.iter().map(|s| !s.is_empty()).collect();
+        let classes: Vec<usize> = self.slots.iter().map(|s| s.class).collect();
+        let mut enc = RangeEncoder::new();
+        enc.encode_bits(1, 1);
+        encode_presence(&mut enc, &present, &classes);
+        for (i, slot) in self.slots.iter().enumerate() {
+            if !present[i] {
+                continue;
+            }
+            let plane = if slot.is_ll() && header.ll_prediction {
+                &self.comps[slot.comp].ll_res
+            } else {
+                &self.values[i]
+            };
+            let parent = slot
+                .parent
+                .filter(|_| header.parent_contexts)
+                .map(|p| Parent {
+                    values: &self.values[p],
+                    band: self.slots[p].local_rect(),
+                    sig: &self.pyramids[p],
+                });
+            let class = usize::from(inter);
+            let mut ctx = if self.seq.band_contexts {
+                self.band_contexts[i].lock().expect("band contexts")[class].clone()
+            } else {
+                self.contexts[slot.coding_class(inter)].clone()
+            };
+            code_band(
+                &mut enc,
+                &mut ctx,
+                plane,
+                slot.local_rect(),
+                parent,
+                Some(&self.pyramids[i]),
+                self.guides[i].as_ref(),
+                self.seq.block_log2,
+                slot.transposed(),
+            );
+        }
+        enc.finish()
+    }
+
+    /// The band section as it will be written (one joint stream when the sequence allows it,
+    /// the separate bands fit `JOINT_MAX_BYTES` and it is smaller; else the layout and the
+    /// separate segments), and its cost in bytes. The joint stream is built once per set of
+    /// segments.
+    fn band_section(&mut self, header: &FrameHeader) -> (bool, usize) {
+        let layout = self.layout_cost();
+        let separate: usize = self.segments.iter().map(Vec::len).sum();
+        // The joint stream decodes band after band on one thread: kept to frames small enough
+        // that this costs nothing next to the rest of the decode.
+        if self.seq.joint_bands && separate <= JOINT_MAX_BYTES {
+            if self.joint.is_none() {
+                self.joint = Some(self.joint_bands(header));
+            }
+            let joint = self.joint.as_ref().expect("built above");
+            let joint_cost = varint_len(joint.len()) + joint.len();
+            if joint_cost < layout + separate {
+                return (true, joint_cost);
+            }
+        }
+        (false, layout + separate)
+    }
+
+    /// Appends the band section (see `band_section`).
+    fn write_bands(&mut self, header: &FrameHeader, payload: &mut Vec<u8>, stats: &mut FrameStats) {
+        for (i, segment) in self.segments.iter().enumerate() {
+            stats.component_bytes[self.slots[i].comp] += segment.len();
+        }
+        let separate: usize = self.segments.iter().map(Vec::len).sum();
+        let (joint, cost) = self.band_section(header);
+        if joint {
+            let joint = self.joint.take().expect("built by band_section");
+            put_varint(payload, joint.len() as u64);
+            payload.extend_from_slice(&joint);
+            stats.layout_bytes = cost.saturating_sub(separate);
+            return;
+        }
+        self.joint = None;
         let layout = self.encode_layout();
         put_varint(payload, layout.len() as u64);
         payload.extend_from_slice(&layout);
         stats.layout_bytes = varint_len(layout.len()) + layout.len();
-        for (i, segment) in self.segments.iter().enumerate() {
-            if !segment.is_empty() {
-                payload.extend_from_slice(segment);
-                stats.component_bytes[self.slots[i].comp] += segment.len();
-            }
+        for segment in &self.segments {
+            payload.extend_from_slice(segment);
         }
     }
 
@@ -2554,6 +2646,7 @@ impl Encoder {
         for (&i, (segment, pending)) in self.by_size.iter().zip(segments) {
             self.band_stats[i].bytes = segment.len();
             self.segments[i] = segment;
+            self.joint = None;
             self.band_pending[i] = pending;
         }
         if let Some(stats) = &mut self.training {
@@ -2624,6 +2717,7 @@ impl Encoder {
             }
             if !self.segments[i].is_empty() {
                 self.segments[i].clear();
+                self.joint = None;
                 bytes = fixed
                     + self.layout_cost()
                     + self.segments.iter().map(|s| s.len()).sum::<usize>();
@@ -3249,6 +3343,12 @@ pub fn rate_mesh_floor(cfg: &EncoderConfig) -> u32 {
     let bpp = rc.bitrate as f64 / (fps * (cfg.width * cfg.height) as f64);
     if bpp < LOW_RATE_BPP { 5 } else { 0 }
 }
+
+/// Largest band payload a frame codes as one joint stream (see `write_bands`). The joint stream
+/// decodes on one thread: free single-threaded, but 720p frames of 2 KB and 7 KB took 0.6 and
+/// 1.0 ms longer on four x86 threads, while the gain falls from about 5% of a 400-byte frame
+/// to under 1% of a 7 KB one.
+const JOINT_MAX_BYTES: usize = 4096;
 
 /// Bits per pixel below which [`rate_mesh_floor`] holds the grid at 32 pixels.
 pub const LOW_RATE_BPP: f64 = 0.03;

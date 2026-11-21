@@ -581,6 +581,7 @@ mod tests {
             band_contexts: false,
             temporal_mv: false,
             temporal_motion: false,
+            joint_bands: false,
         }
     }
 

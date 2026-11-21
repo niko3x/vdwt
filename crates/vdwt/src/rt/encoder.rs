@@ -210,6 +210,7 @@ impl RtEncoder {
             band_contexts: false,
             temporal_mv: false,
             temporal_motion: false,
+            joint_bands: false,
         };
         let slots = codec::band_slots(&seq);
         let grid = Grid::new(cfg.width, cfg.height, seq.mesh_log2);

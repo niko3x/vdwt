@@ -39,9 +39,15 @@ fn cdfs() -> [Cdf; CLASSES] {
 
 /// Encodes one length per class. Zero marks an absent band.
 pub(crate) fn encode(lengths: &[usize], classes: &[usize]) -> Vec<u8> {
+    let mut enc = RangeEncoder::new();
+    encode_into(&mut enc, lengths, classes);
+    enc.finish()
+}
+
+/// [`encode`] into a running coder (after a joint stream's mode bit).
+pub(crate) fn encode_into(enc: &mut RangeEncoder, lengths: &[usize], classes: &[usize]) {
     debug_assert_eq!(lengths.len(), classes.len());
     let mut cdfs = cdfs();
-    let mut enc = RangeEncoder::new();
     for (&len, &class) in lengths.iter().zip(classes) {
         debug_assert!(class < CLASSES);
         let bits = usize::BITS - len.leading_zeros();
@@ -53,16 +59,19 @@ pub(crate) fn encode(lengths: &[usize], classes: &[usize]) -> Vec<u8> {
         }
         if bits > 0 {
             let mantissa = len - (1usize << (bits - 1));
-            encode_raw(&mut enc, mantissa as u64, bits - 1);
+            encode_raw(enc, mantissa as u64, bits - 1);
         }
     }
-    enc.finish()
 }
 
 /// Decodes one length per class. The caller validates them against the payload.
 pub(crate) fn decode(data: &[u8], classes: &[usize]) -> Result<Vec<usize>> {
+    decode_from(&mut RangeDecoder::new(data), classes)
+}
+
+/// [`decode`] from a running decoder.
+pub(crate) fn decode_from(dec: &mut RangeDecoder<'_>, classes: &[usize]) -> Result<Vec<usize>> {
     let mut cdfs = cdfs();
-    let mut dec = RangeDecoder::new(data);
     let mut lengths = Vec::with_capacity(classes.len());
     for &class in classes {
         if class >= CLASSES {
@@ -80,7 +89,7 @@ pub(crate) fn decode(data: &[u8], classes: &[usize]) -> Result<Vec<usize>> {
         if bits > usize::BITS {
             return Err(Error::InvalidData("band length"));
         }
-        let mantissa = decode_raw(&mut dec, bits - 1);
+        let mantissa = decode_raw(dec, bits - 1);
         let value = (1u64 << (bits - 1))
             .checked_add(mantissa)
             .and_then(|v| usize::try_from(v).ok())
@@ -88,6 +97,37 @@ pub(crate) fn decode(data: &[u8], classes: &[usize]) -> Result<Vec<usize>> {
         lengths.push(value);
     }
     Ok(lengths)
+}
+
+/// A joint band section's presence flags, one per band in coding order, from the same priors
+/// as the lengths' "absent" entry (VERSION 12).
+pub(crate) fn encode_presence(enc: &mut RangeEncoder, present: &[bool], classes: &[usize]) {
+    let mut cdfs = presence_cdfs();
+    for (&p, &class) in present.iter().zip(classes) {
+        enc.encode(&cdfs[class], usize::from(p));
+        cdfs[class].update(usize::from(p));
+    }
+}
+
+pub(crate) fn decode_presence(dec: &mut RangeDecoder<'_>, classes: &[usize]) -> Result<Vec<bool>> {
+    let mut cdfs = presence_cdfs();
+    let mut present = Vec::with_capacity(classes.len());
+    for &class in classes {
+        if class >= CLASSES {
+            return Err(Error::InvalidData("band class"));
+        }
+        let p = dec.decode(&cdfs[class]);
+        cdfs[class].update(p);
+        present.push(p == 1);
+    }
+    Ok(present)
+}
+
+fn presence_cdfs() -> [Cdf; CLASSES] {
+    std::array::from_fn(|c| {
+        let absent = PRIORS[c][0].clamp(1, 999);
+        Cdf::from_weights(&[absent, 1000 - absent])
+    })
 }
 
 /// Codes the low `bits` bits of `v`, least significant chunk first. `bits` may exceed 16.

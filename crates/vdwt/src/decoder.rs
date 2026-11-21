@@ -8,7 +8,7 @@ use crate::codec::{self, BandSlot, LevelBands};
 use crate::dwt::d97::{ForwardJob, InverseJob};
 use crate::dwt::{BAND_LOG2, BlockMap, Dwt97, Transform, Wavelet};
 use crate::entropy::{
-    Contexts, Parent, RangeDecoder, SigPyramid, TrackedRows, code_band, decode_layout,
+    Contexts, Parent, RangeDecoder, SigPyramid, TrackedRows, code_band, decode_layout, decode_layout_from, decode_presence,
 };
 use crate::error::{Error, Result};
 use crate::loopfilter::{self, BitReader, Coefs};
@@ -21,7 +21,7 @@ use crate::profile::{Stage, StageTimes, Stopwatch};
 use crate::quant::Dequantizer;
 use crate::{Frame, Isa, Plane};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{OnceLock, RwLock};
+use std::sync::{Mutex, OnceLock, RwLock};
 
 /// Per-component buffers.
 struct Component {
@@ -192,8 +192,14 @@ impl Decoder {
     }
 
     /// Decodes every band into `self.values` and builds `self.pyramids`, one band per task. A band
-    /// waits only for its parent (always earlier in coding order, so claimed earlier).
-    fn decode_bands(&mut self, header: &FrameHeader, segments: &[Option<&[u8]>]) {
+    /// waits only for its parent (always earlier in coding order, so claimed earlier). With a
+    /// joint stream the bands decode one after another, in coding order, from it.
+    fn decode_bands<'s>(
+        &mut self,
+        header: &FrameHeader,
+        segments: &[Option<&'s [u8]>],
+        joint: Option<&Mutex<RangeDecoder<'s>>>,
+    ) {
         let inter = header.frame_type.predicted();
         let (slots, contexts, band_contexts, band_flag, block_log2) = (
             &self.slots,
@@ -240,7 +246,7 @@ impl Decoder {
             .collect();
         let pyramids: Vec<OnceLock<SigPyramid>> = slots.iter().map(|_| OnceLock::new()).collect();
         let failed = AtomicBool::new(false);
-        self.pool.run(slots.len(), &|i| {
+        let task = |i: usize| {
             // A task that unwinds tells the tasks waiting for it.
             struct Failed<'a>(&'a AtomicBool);
             impl Drop for Failed<'_> {
@@ -287,11 +293,19 @@ impl Decoder {
                 let guide = inter
                     .then(|| codec::band_guide(slot, seq, header.qp, pred_coeffs[slot.comp]))
                     .flatten();
-                let mut decoder = RangeDecoder::new(segment);
+                let mut guard = joint.map(|m| m.lock().unwrap_or_else(|e| e.into_inner()));
+                let mut own;
+                let decoder = match guard.as_deref_mut() {
+                    Some(d) => d,
+                    None => {
+                        own = RangeDecoder::new(segment);
+                        &mut own
+                    }
+                };
                 match ll.as_deref_mut() {
                     // A predicted LL band: every row is rebuilt from the residuals below.
                     Some(res) => code_band(
-                        &mut decoder,
+                        decoder,
                         &mut ctx,
                         res,
                         rect,
@@ -302,7 +316,7 @@ impl Decoder {
                         slot.transposed(),
                     ),
                     None => code_band(
-                        &mut decoder,
+                        decoder,
                         &mut ctx,
                         TrackedRows {
                             plane: values,
@@ -334,7 +348,12 @@ impl Decoder {
                 codec::ll_reconstruct(res, rect, values);
             }
             let _ = pyramids[i].set(pyramid);
-        });
+        };
+        if joint.is_some() {
+            (0..slots.len()).for_each(task);
+        } else {
+            self.pool.run(slots.len(), &task);
+        }
         self.pyramids.clear();
         self.pyramids.extend(
             pyramids
@@ -584,7 +603,29 @@ impl Decoder {
         }
         // Every band's segment first: a corrupt length fails before anything decodes.
         let mut segments = Vec::with_capacity(self.slots.len());
-        if self.seq.layout_coding {
+        let mut joint = None;
+        if self.seq.joint_bands {
+            // One range stream: its first bit says whether it holds every band (after their
+            // presence flags) or the layout of separate segments.
+            let classes: Vec<usize> = self.slots.iter().map(|s| s.class).collect();
+            let chunk = r.chunk()?;
+            let mut dec = RangeDecoder::new(chunk);
+            if dec.decode_bits(1) == 1 {
+                for present in decode_presence(&mut dec, &classes)? {
+                    // A placeholder: the bands are read from `joint`.
+                    segments.push(present.then_some(chunk));
+                }
+                joint = Some(Mutex::new(dec));
+            } else {
+                for length in decode_layout_from(&mut dec, &classes)? {
+                    segments.push(if length == 0 {
+                        None
+                    } else {
+                        Some(r.bytes(length)?)
+                    });
+                }
+            }
+        } else if self.seq.layout_coding {
             let classes: Vec<usize> = self.slots.iter().map(|s| s.class).collect();
             let lengths = decode_layout(r.chunk()?, &classes)?;
             for length in lengths {
@@ -624,7 +665,7 @@ impl Decoder {
         if self.seq.layout_coding && r.remaining() != 0 {
             return Err(Error::InvalidData("trailing frame data"));
         }
-        self.decode_bands(&header, &segments);
+        self.decode_bands(&header, &segments, joint.as_ref());
         watch.lap(&mut self.times, Stage::Entropy);
 
         if bi {
