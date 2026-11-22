@@ -873,6 +873,14 @@ impl Encoder {
         }
     }
 
+    /// The clip's length in frames, once known: a streamed input learns it only near its end.
+    /// It is read for the last two frames alone (an intra frame there takes
+    /// `final_intra_qp_offset`), so setting it two frames before the end codes the same stream
+    /// as setting `EncoderConfig::total_frames` up front.
+    pub fn set_total_frames(&mut self, total: u16) {
+        self.cfg.total_frames = Some(total);
+    }
+
     /// Overrides the intra qp offset for the next intra frame only.
     pub fn set_next_intra_offset(&mut self, offset: Option<i8>) {
         self.next_intra_offset = offset;

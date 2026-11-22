@@ -8,6 +8,7 @@ mod y4m;
 
 use std::collections::HashMap;
 use std::fs;
+use std::io::{BufWriter, Write};
 use std::path::Path;
 use std::process::ExitCode;
 use std::str::FromStr;
@@ -46,7 +47,9 @@ COMMANDS:
         leftover link capacity for later frames (0: no ceiling).
         --frame-log writes per-frame type, size, qp, motion and rate-control state.
         IN is a .y4m file (4:2:0, 4:2:2, 4:4:4 or mono, 8-16 bits; coded as 8-bit 4:2:0),
-        `-` for Y4M on standard input, or any other video file ffmpeg can read.
+        `-` for Y4M on standard input, or any other video file ffmpeg can read. Input is read
+        a few frames ahead of the encoder and the stream written as it is coded, so a pipe
+        starts at once and memory stays constant however long it runs.
     decode IN.vdwt OUT.y4m [--threads N] [--postfilter auto] [--frame-times TIMES.csv]
         Decode a stream to 8-bit 4:2:0 Y4M; OUT `-` writes it to standard output. --sharpen applies the optional display post-filter (luma unsharp mask;
         it does not change the bitstream or any reference picture).
@@ -914,19 +917,21 @@ impl CodecOptions {
         })
     }
 
-    /// [`Self::config`] for `frames`: the ultraheavy tier probes its motion grid on the first
-    /// frames unless one is given.
+    /// [`Self::config`] for a clip whose first frames are `frames` (all of it, or at least
+    /// [`SETUP_FRAMES`] of it), and `total` frames long if known: the ultraheavy tier probes its
+    /// motion grid on the first frames unless one is given.
     fn config_for(
         &self,
         info: &Y4mInfo,
         qp: u8,
         frames: &[Frame],
+        total: Option<usize>,
         rate_control: Option<RateControl>,
     ) -> Result<EncoderConfig, String> {
         let mut cfg = self.config(info, qp);
         // Before the probes: they encode trial frames, and must do so as the stream will.
         cfg.rate_control = rate_control;
-        cfg.total_frames = Some(frames.len().min(u16::MAX as usize) as u16);
+        cfg.total_frames = total.map(|t| t.min(u16::MAX as usize) as u16);
         // A hard cut into the opening I-frame leaves that reference carrying the whole shot;
         // spend the extra bits on it. Softer changes (a moderate scene shift) do not pay.
         let default_intra = if cfg.effort >= 3 {
@@ -1054,6 +1059,64 @@ fn read_frames(path: &str, max: usize) -> Result<(Y4mInfo, Vec<Frame>), String> 
     Ok((reader.info.clone(), frames))
 }
 
+/// Frames read ahead of the one being encoded. The encoder's setup probes its first
+/// [`TRIAL_FRAMES`] and the opening cut; a step codes up to [`STILL_GROUP`] frames; and an
+/// intra frame within two frames of the end codes differently, so the clip's end must be known
+/// two frames past a step. Six covers all of it: a streamed input codes exactly as a file.
+const SETUP_FRAMES: usize = 6;
+
+/// The input read as it is encoded: frames wait here only until their step is coded, so memory
+/// stays bounded and a pipe starts encoding after a few frames instead of at its end.
+struct Lookahead {
+    reader: Y4mReader,
+    path: String,
+    ahead: std::collections::VecDeque<Frame>,
+    /// Frames read so far, and the most `encode` takes.
+    read: usize,
+    max: usize,
+    done: bool,
+}
+
+impl Lookahead {
+    fn open(path: &str, max: usize) -> Result<Self, String> {
+        Ok(Self {
+            reader: open_y4m(path)?,
+            path: path.to_owned(),
+            ahead: std::collections::VecDeque::new(),
+            read: 0,
+            max,
+            done: false,
+        })
+    }
+
+    /// Reads until `n` frames wait or the input ends.
+    fn fill(&mut self, n: usize) -> Result<(), String> {
+        while self.ahead.len() < n && !self.done {
+            if self.read >= self.max {
+                self.done = true;
+                break;
+            }
+            let mut frame = self.reader.new_frame();
+            if self
+                .reader
+                .read_frame(&mut frame)
+                .map_err(|e| format!("{}: {e}", self.path))?
+            {
+                self.ahead.push_back(frame);
+                self.read += 1;
+            } else {
+                self.done = true;
+            }
+        }
+        Ok(())
+    }
+
+    /// The clip's length, once the input has ended.
+    fn total(&self) -> Option<usize> {
+        self.done.then_some(self.read)
+    }
+}
+
 fn fps(info: &Y4mInfo) -> f64 {
     f64::from(info.fps_num) / f64::from(info.fps_den)
 }
@@ -1130,7 +1193,12 @@ fn encode(mut args: Args) -> Result<(), String> {
     };
     args.finish(2)?;
     let (input, output) = (&args.positional[0], &args.positional[1]);
-    let (info, frames) = read_frames(input, max_frames)?;
+    let mut input = Lookahead::open(input, max_frames)?;
+    input.fill(SETUP_FRAMES)?;
+    if input.ahead.is_empty() {
+        return Err(format!("{}: no frames", input.path));
+    }
+    let info = input.reader.info.clone();
     let frame_rate = fps(&info);
 
     let rate_control = schedule.as_ref().map(|schedule| {
@@ -1139,7 +1207,8 @@ fn encode(mut args: Args) -> Result<(), String> {
         rc.quality_cap = quality_cap;
         rc
     });
-    let mut cfg = opts.config_for(&info, qp, &frames, rate_control)?;
+    let head: Vec<Frame> = input.ahead.iter().cloned().collect();
+    let mut cfg = opts.config_for(&info, qp, &head, input.total(), rate_control)?;
     cfg.postfilter = match post {
         PostFilter::Auto => postfilter::PostFilterMode::Auto,
         PostFilter::BandWide(a) => postfilter::PostFilterMode::Fixed(
@@ -1149,8 +1218,8 @@ fn encode(mut args: Args) -> Result<(), String> {
     };
     cfg.short_headers = cfg.rate_control.is_none();
     let mut encoder = Encoder::new(cfg).map_err(|e| e.to_string())?;
-    if frames.len() > 1 {
-        let cut = frame_difference(&frames[0], &frames[1]);
+    if head.len() > 1 {
+        let cut = frame_difference(&head[0], &head[1]);
         if cut > 20.0 {
             // Frame 0 is never referenced when frame 1 starts a new scene. A hard cut makes
             // frame 0 a single displayed shot, like the final intra frame (A12): code it at qp
@@ -1158,8 +1227,13 @@ fn encode(mut args: Args) -> Result<(), String> {
             encoder.set_next_intra_offset(Some(if cut > 50.0 { 0 } else { -2 }));
         }
     }
+    drop(head);
+    let mut out = BufWriter::new(
+        fs::File::create(output).map_err(|e| format!("{output}: {e}"))?,
+    );
     let mut stream = Vec::new();
     encoder.sequence_header().write(&mut stream);
+    let mut written = 0usize;
     let mut display = Frame::new(info.width, info.height);
     let mut recon_out = match &recon_path {
         Some(p) => Some(Y4mWriter::create(Path::new(p), &info).map_err(|e| format!("{p}: {e}"))?),
@@ -1167,13 +1241,12 @@ fn encode(mut args: Args) -> Result<(), String> {
     };
     let mut log = match &log_path {
         Some(p) => {
-            let mut f = String::from(
+            let f = String::from(
                 "frame,type,bytes,qp,psnr_y,pred_psnr_y,motion_bytes,filter,refined_nodes,intra_nodes,patches,inliers,\
                  gm0x,gm0y,gm1x,gm1y,gm2x,gm2y,gm3x,gm3y,\
                  link_kbps,target_bits,cap_bits,estimate_bits,queue_bits,delay_frames,dropped_bands,postfilter,\
                  header_bytes,layout_bytes,loop_bytes,encode_ms\n",
             );
-            f.reserve(frames.len() * 120);
             Some((p.clone(), f))
         }
         None => None,
@@ -1187,12 +1260,28 @@ fn encode(mut args: Args) -> Result<(), String> {
         (0usize, 0usize, 0usize, 0usize);
     let (mut p_count, mut b_count, mut motion_bytes) = (0usize, 0usize, 0usize);
     let mut next = 0;
-    while next < frames.len() {
+    let mut previous: Option<Frame> = None;
+    let mut total_set = false;
+    loop {
+        input.fill(SETUP_FRAMES)?;
+        if input.ahead.is_empty() {
+            break;
+        }
+        // The clip's length, as soon as it is known (the encoder reads it for its last two
+        // frames only); at u16::MAX it is capped, as `config_for` caps a known length.
+        if !total_set && (input.done || input.read >= u16::MAX as usize) {
+            encoder.set_total_frames(input.read.min(u16::MAX as usize) as u16);
+            total_set = true;
+        }
+        // Frames available from `next` on: all that is left once the input has ended, and
+        // otherwise at least a full group.
+        let available = next + input.ahead.len();
         // A pair of frames at once (ultraheavy), else one frame: in display order, each with its
         // reconstruction. A frame identical to the previous source is a Repeat: the picture has
         // not changed.
-        let repeat = next > 0
-            && same_frame(&frames[next], &frames[next - 1])
+        let repeat = previous
+            .as_ref()
+            .is_some_and(|p| same_frame(&input.ahead[0], p))
             && encoder.last_psnr()
                 >= if frame_rate >= 50.0 {
                     REPEAT_MIN_PSNR_HIGH_FPS
@@ -1202,10 +1291,11 @@ fn encode(mut args: Args) -> Result<(), String> {
         let group = if repeat {
             1
         } else {
-            group_size(opts.adaptive, schedule.is_none(), next, frames.len())
+            group_size(opts.adaptive, schedule.is_none(), next, available)
         };
         let step = next..next + group;
         next = step.end;
+        let frames: Vec<Frame> = input.ahead.drain(..group).collect();
         if let Some(rate) = schedule
             .as_ref()
             .and_then(|s| s.iter().find(|&&(f, _)| step.contains(&f)))
@@ -1223,14 +1313,14 @@ fn encode(mut args: Args) -> Result<(), String> {
                 .map_err(|e| e.to_string())?;
             vec![(0, stats)]
         } else if opts.adaptive {
-            let refs: Vec<&Frame> = frames[step.clone()].iter().collect();
+            let refs: Vec<&Frame> = frames.iter().collect();
             let stats = encoder
                 .encode_pair(&refs, &mut stream)
                 .map_err(|e| e.to_string())?;
             stats.into_iter().enumerate().collect()
         } else {
             let stats = encoder
-                .encode_frame(&frames[step.start], &mut stream)
+                .encode_frame(&frames[0], &mut stream)
                 .map_err(|e| e.to_string())?;
             vec![(0, stats)]
         };
@@ -1238,7 +1328,7 @@ fn encode(mut args: Args) -> Result<(), String> {
         elapsed += step_time;
         for (local, stats) in coded {
             let i = step.start + local;
-            let frame = &frames[i];
+            let frame = &frames[local];
             let stored: &Frame = if opts.adaptive && !repeat {
                 encoder.group_recon(local)
             } else {
@@ -1335,8 +1425,15 @@ fn encode(mut args: Args) -> Result<(), String> {
                 w.write_frame(recon).map_err(|e| e.to_string())?;
             }
         }
+        // The coded step goes out now, so a reader of the output can follow the encode.
+        out.write_all(&stream)
+            .and_then(|()| out.flush())
+            .map_err(|e| format!("{output}: {e}"))?;
+        written += stream.len();
+        stream.clear();
+        previous = frames.into_iter().last();
     }
-    fs::write(output, &stream).map_err(|e| format!("{output}: {e}"))?;
+    let count = next;
     if let Some(w) = recon_out {
         w.finish().map_err(|e| e.to_string())?;
     }
@@ -1344,8 +1441,8 @@ fn encode(mut args: Args) -> Result<(), String> {
         fs::write(&path, text).map_err(|e| format!("{path}: {e}"))?;
     }
 
-    let n = frames.len() as f64;
-    let frame_bytes = stream.len() as f64 / n;
+    let n = count as f64;
+    let frame_bytes = written as f64 / n;
     let kbps = frame_bytes * 8.0 * frame_rate / 1000.0;
     let total: usize = comp_bytes.iter().sum::<usize>().max(1);
     let share = comp_bytes.map(|b| 100.0 * b as f64 / total as f64);
@@ -1357,7 +1454,7 @@ fn encode(mut args: Args) -> Result<(), String> {
     };
     println!(
         "{} frames {}x{} @ {:.2} fps, {mode}: {kbps:.1} kbps, {frame_bytes:.0} bytes/frame, {:.4} bpp",
-        frames.len(),
+        count,
         info.width,
         info.height,
         frame_rate,
@@ -1382,8 +1479,8 @@ fn encode(mut args: Args) -> Result<(), String> {
         };
         println!(
             "frames {} intra, {p_count} P{bi};  motion {:.1}% of the stream ({:.0} bytes per P-frame)",
-            frames.len() - p_count - repeats - skips,
-            100.0 * motion_bytes as f64 / stream.len() as f64,
+            count - p_count - repeats - skips,
+            100.0 * motion_bytes as f64 / written as f64,
             motion_bytes as f64 / p_count as f64
         );
     }
@@ -1401,7 +1498,7 @@ fn encode(mut args: Args) -> Result<(), String> {
         opts.threads,
         if opts.threads == 1 { "" } else { "s" }
     );
-    println!("{}", stage_line(&times, frames.len()));
+    println!("{}", stage_line(&times, count));
     Ok(())
 }
 
@@ -1778,7 +1875,7 @@ fn ctx_sim(mut args: Args) -> Result<(), String> {
             rc
         });
         let fixed_qp = rate_control.is_none();
-        let mut cfg = opts.config_for(&info, qp, &frames, rate_control)?;
+        let mut cfg = opts.config_for(&info, qp, &frames, Some(frames.len()), rate_control)?;
         cfg.short_headers = fixed_qp;
         let mut encoder = Encoder::new(cfg).map_err(|e| e.to_string())?;
         encoder.trace_bands();
@@ -1832,7 +1929,8 @@ fn rd(mut args: Args) -> Result<(), String> {
     println!("  qp      kbps     bpp   PSNR-Y  PSNR-U  PSNR-V  PSNR-YUV   enc ms  dec ms");
     for qp in qps {
         let mut encoder =
-            Encoder::new(opts.config_for(&info, qp, &frames, None)?).map_err(|e| e.to_string())?;
+            Encoder::new(opts.config_for(&info, qp, &frames, Some(frames.len()), None)?)
+                .map_err(|e| e.to_string())?;
         let mut decoder =
             Decoder::with_threads(encoder.sequence_header().clone(), opts.isa, opts.threads)
                 .map_err(|e| e.to_string())?;
@@ -1930,7 +2028,7 @@ fn pred_dump(mut args: Args) -> Result<(), String> {
     args.finish(2)?;
     let (input, output) = (&args.positional[0], &args.positional[1]);
     let (info, frames) = read_frames(input, max_frames)?;
-    let cfg = opts.config_for(&info, qp, &frames, None)?;
+    let cfg = opts.config_for(&info, qp, &frames, Some(frames.len()), None)?;
     let mut encoder = Encoder::new(cfg).map_err(|e| e.to_string())?;
     encoder.keep_predictions();
     let mut writer =
