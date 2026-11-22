@@ -11,6 +11,9 @@ vdwt encode IN OUT.vdwt [--qp 44 | --bitrate RATE[@FRAME],...] [options]
 
 `IN` is a `.y4m` file (4:2:0, 4:2:2, 4:4:4 or monochrome, 8–16 bits; coded as 8-bit 4:2:0), `-`
 for Y4M on standard input, or any other video file `ffmpeg` can read.
+The encoder reads only a few frames ahead and writes the stream as it codes, so a live pipe
+(`ffmpeg -i input.mov -f yuv4mpegpipe - | vdwt encode - out.vdwt --bitrate 2M`) starts at once
+and memory stays constant however long it runs.
 
 | Option | Meaning |
 |---|---|

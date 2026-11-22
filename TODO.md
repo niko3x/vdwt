@@ -234,6 +234,17 @@ the internal lab notes.
 See EXPERIMENTS.md `Open, not applied` (O6–O19), especially loop-filter coordinate descent (O10)
 and quadtree pruning (O9).
 
+- Done 2026-11-22: `vdwt encode` streams its input (six frames of lookahead, output written per
+  step; constant memory, streams unchanged). The developer commands (`rd`, `ctx-sim`,
+  `pred-dump`, `train-contexts`) still read the whole clip.
+- Done 2026-11-22: measurement round for decoder-side changes (`bench/gate/phase0-2026-11-22.md`):
+  gate v2, `vdwt ctx-sim`, `tools/pred_oracle.py`. Context, brightness and second-hypothesis
+  ideas are out; temporal layers were built and failed the gate. Next: a block-free motion-model
+  oracle with its side information priced.
+- The SVT-AV1 reference line ignores its buffer in low-delay CBR (tens of frames of queue). A
+  latency-honest AV1 line needs another encoder setting or an external check; until then compare
+  with the `delay` column beside it.
+
 ## 8. Perceptual encoder defaults (2026-10-26)
 
 **Superseded 2026-10-28:** frame AQ stays default; the sharpened target and the finest tilt

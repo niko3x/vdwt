@@ -53,6 +53,15 @@ Offline tools for deciding what to build before building it:
 | `ref_x265.json` | x265 4.3 `--preset medium --tune zerolatency`, CBR, VBV of three frames, no B-frames |
 | `ref_svtav1.json` | SVT-AV1 preset 8, low-delay (`--pred-struct 1`), CBR, 3-frame buffer |
 | `ref_x265qp.json` | x265 as above at fixed QP 22–37 (coaster, oldtown, aerial, kristen only) |
+| `1593431_long.json` | VDWT at 1593431 on the long set, realtime, medium and ultraheavy |
+| `ref_x265_long.json`, `ref_svtav1_long.json` | the references on the long set, with `delay` |
+| `th_lam2.json`, `th_lam4.json`, `th_mesh64.json` | talking heads (long, medium) with motion λ ×2, ×4 and a 64-px grid: all worse |
+
+`ref_x265.json` and `ref_svtav1.json` were re-run on 2026-11-22 to record `delay`: x265 holds
+2.5 frames on average (worst 3.1); SVT-AV1's low-delay CBR averages 21 (worst 114), 37 / 97 on
+the long set. Read SVT-AV1's lead with that in mind. On the long set VDWT ultraheavy is −9.2% PSNR
+/ −8.3% VMAF against x265 (medium +3.9 / +1.4%, realtime +24 / +7%). Details:
+`phase0-2026-11-22.md`.
 
 `49c379e` against `592f920` (BD-rate, PSNR / VMAF; 11 clips): medium CBR −1.66 / −1.84%,
 medium qp −1.61 / −1.81%, ultraheavy CBR −1.20 / −1.27%, ultraheavy qp −1.21 / −1.38%.
