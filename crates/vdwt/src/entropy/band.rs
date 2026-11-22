@@ -42,6 +42,10 @@ pub(crate) trait SymbolCoder {
     fn symbol(&mut self, cdf: &mut Cdf, s: &mut usize);
     /// Codes or decodes `count` (1..=16) raw bits.
     fn bits(&mut self, count: u32, v: &mut u32);
+    /// Where the next symbols belong: band coordinates of a block, node, quad or sample, and
+    /// its size `2^j` (0 for a sample). Only the developer [`Tracer`] uses it.
+    #[inline]
+    fn at(&mut self, _x: usize, _y: usize, _j: u32) {}
 }
 
 impl SymbolCoder for RangeEncoder {
@@ -94,6 +98,65 @@ impl SymbolCoder for Recorder {
     }
 
     fn bits(&mut self, _: u32, _: &mut u32) {}
+}
+
+/// One traced symbol (see [`Tracer`]).
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct TracedSymbol {
+    /// The CDF's place in [`Contexts::cdfs`].
+    pub k: u8,
+    pub s: u8,
+    pub x: u16,
+    pub y: u16,
+    /// Size log2 of the block, node or quad the symbol belongs to; 0 for a sample's own symbols.
+    pub j: u8,
+}
+
+/// Developer: logs every symbol of one band with its CDF and position, for the offline context
+/// simulator (`crate::ctxsim`).
+#[derive(Default)]
+pub(crate) struct Tracer {
+    pub symbols: Vec<TracedSymbol>,
+    pub raw_bits: u64,
+    offsets: Vec<usize>,
+    base: usize,
+    at: (u16, u16, u8),
+}
+
+impl SymbolCoder for Tracer {
+    const ENCODER: bool = true;
+
+    fn begin(&mut self, ctx: &Contexts) {
+        self.base = ctx as *const Contexts as usize;
+        self.offsets.clear();
+        self.offsets
+            .extend(ctx.cdfs().map(|c| c as *const Cdf as usize - self.base));
+    }
+
+    fn symbol(&mut self, cdf: &mut Cdf, s: &mut usize) {
+        let offset = (cdf as *const Cdf as usize).wrapping_sub(self.base);
+        let k = self
+            .offsets
+            .iter()
+            .position(|&o| o == offset)
+            .expect("band symbols use band contexts");
+        let (x, y, j) = self.at;
+        self.symbols.push(TracedSymbol {
+            k: k as u8,
+            s: *s as u8,
+            x,
+            y,
+            j,
+        });
+    }
+
+    fn bits(&mut self, count: u32, _: &mut u32) {
+        self.raw_bits += u64::from(count);
+    }
+
+    fn at(&mut self, x: usize, y: usize, j: u32) {
+        self.at = (x as u16, y as u16, j as u8);
+    }
 }
 
 impl SymbolCoder for RangeDecoder<'_> {
@@ -828,6 +891,7 @@ impl<C: SymbolCoder, V: BandValues> Walker<'_, C, V> {
                 let ci = usize::from(parent_nz) * 2 + usize::from(left || *above);
                 let g = self.guide(b, bx, by);
                 let mut nz = usize::from(self.own_nz(b, bx, by));
+                self.coder.at(bx << b, by << b, b);
                 self.coder.symbol(&mut self.ctx.group[g].block[ci], &mut nz);
                 let nz = nz != 0;
                 if nz {
@@ -884,6 +948,7 @@ impl<C: SymbolCoder, V: BandValues> Walker<'_, C, V> {
                 let ci = size * 4 + usize::from(parent_nz) * 2 + usize::from(any);
                 let g = self.guide(j - 1, bx, by);
                 let mut v = usize::from(self.own_nz(j - 1, bx, by));
+                self.coder.at(cx, cy, j - 1);
                 self.coder.symbol(&mut self.ctx.group[g].node[ci], &mut v);
                 v != 0
             };
@@ -926,6 +991,7 @@ impl<C: SymbolCoder, V: BandValues> Walker<'_, C, V> {
         }
         let ci = count.min(3) * 3 + pb;
         let g = self.guide(1, qx / 2, qy / 2);
+        self.coder.at(qx, qy, 1);
         let group = &mut self.ctx.group[g];
         let cdf = if forced {
             &mut group.rho_forced[ci]
@@ -961,6 +1027,7 @@ impl<C: SymbolCoder, V: BandValues> Walker<'_, C, V> {
             }
             k += 1;
             let (x, y) = (qx + (b & 1), qy + (b >> 1));
+            self.coder.at(x, y, 0);
             let v = if C::ENCODER { self.get(x, y) } else { 0 };
             let m = v.unsigned_abs();
             // Bit length e: free when U = 1, inferred as U for the last sample if none reached U.

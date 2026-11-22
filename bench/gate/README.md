@@ -18,6 +18,31 @@ v0.6.1. A change passes when the mean BD-rate improves and no clip loses more th
 A full run is about 20 minutes on the i5-10210U (126 encodes, three at a time); `--quick`
 (medium, CBR) about 5.
 
+Gate v2 options (decoder roadmap, Phase 0):
+
+- `--tiers realtime,light,medium,heavy,ultraheavy`: `realtime` is medium with `--realtime`.
+- `--long` (and `refs --long`, `where --long`): the long set from `bash tools/fetch_gate.sh
+  --long` — 300 frames of FourPeople, KristenAndSara, crowd_run, ducks_take_off and
+  old_town_cross (the 4K sources would be 4 GB of download each) plus 300 frames of Luckfox.
+  Tags end in `_long`; references are `ref_<codec>_long.json`.
+- Every VDWT encode is also decoded once on one thread; rows carry `dec_fps`, and `compare`
+  prints the decode-time change per tier. A normative change states it. Times are wall clock
+  with `-j` jobs in parallel, so compare runs made the same way on an idle machine.
+- `--cvvdp`: also ColorVideoVDP (JOD, `standard_fhd`), which sees chroma and temporal
+  artifacts VMAF does not. It needs pycvvdp (installed in `~/.cache/vdwt-cvvdp`, CPU torch;
+  `$CVVDP` overrides the path) and costs about 2 minutes per 720p 120-frame encode here, so it
+  is for phase-end checks. `compare` and `where` add a CVVDP column when both sides have it.
+
+Offline tools for deciding what to build before building it:
+
+- `vdwt ctx-sim CLIPS [--qp Q | --bitrate R] [--frames N] [--only names]` replays every
+  written band's and motion section's symbols through exact copies of the adaptive CDFs and
+  prices context refinements (`crates/vdwt/src/ctxsim.rs`); its baseline matches the coded
+  segments to within the range coder's flush bytes.
+- `tools/pred_oracle.py CLIP [--qp Q] [--dense R]` prices ideal prediction tools (gain/offset,
+  smooth offset fields, a second hypothesis, a dense block-motion upper bound) against the
+  real prediction (`vdwt pred-dump`).
+
 ## Results in this directory
 
 | file | what |

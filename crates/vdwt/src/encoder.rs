@@ -21,7 +21,7 @@ use crate::codec::{self, BandSlot, LevelBands};
 use crate::dwt::d97::{ForwardJob, InverseJob};
 use crate::dwt::{BAND_LOG2, BlockMap, Dwt97, MAX_LEVELS, Orient, Transform, Wavelet};
 use crate::entropy::{
-    Contexts, Guide, Parent, RangeEncoder, Recorder, Rect, SigPyramid, code_band, encode_layout, encode_layout_into, encode_presence,
+    Contexts, Guide, Parent, RangeEncoder, Recorder, Rect, SigPyramid, Tracer, code_band, encode_layout, encode_layout_into, encode_presence,
 };
 use crate::error::{Error, Result};
 use crate::loopfilter::{self, Coefs};
@@ -522,6 +522,9 @@ pub struct Encoder {
     has_frame: bool,
     /// The current frame's motion-compensated prediction.
     pred: Frame,
+    /// Developer: a copy of each P-frame's prediction, kept for [`Self::prediction`] (the
+    /// buffer itself becomes the reconstruction).
+    kept_pred: Option<Frame>,
     field: MotionField,
     /// The previous frame's field: its vectors seed the node search.
     previous_field: MotionField,
@@ -607,6 +610,10 @@ pub struct Encoder {
     by_size: Vec<usize>,
     /// Symbol statistics, when recording them (see [`Self::record_contexts`]).
     training: Option<ContextStats>,
+    /// Developer: the band symbols of every frame for `crate::ctxsim`, while tracing.
+    trace: Option<Vec<crate::ctxsim::FrameTrace>>,
+    /// Band contexts were reset since the last traced frame.
+    trace_reset: bool,
     rank: Vec<usize>,
 }
 
@@ -728,6 +735,7 @@ impl Encoder {
             motion_snapshot: None,
             recon: Frame::new(cfg.width, cfg.height),
             pred: Frame::new(cfg.width, cfg.height),
+            kept_pred: None,
             sharp_src: std::array::from_fn(|comp| {
                 let (w, h) = codec::component_size(&seq, comp);
                 Plane::new(w, h)
@@ -801,6 +809,8 @@ impl Encoder {
             pool: Pool::new(cfg.threads),
             by_size: by_size(&slots),
             training: None,
+            trace: None,
+            trace_reset: true,
             rank: {
                 let mut rank = vec![0; slots.len()];
                 for (r, i) in by_size(&slots).into_iter().enumerate() {
@@ -828,10 +838,17 @@ impl Encoder {
         &self.recon
     }
 
-    /// The motion-compensated prediction of the most recent coded frame. For an intra frame this
-    /// is stale; diagnostics should use a flat frame there.
+    /// Developer: from now on keep a copy of every P-frame's prediction for [`Self::prediction`].
+    pub fn keep_predictions(&mut self) {
+        self.kept_pred
+            .get_or_insert_with(|| Frame::new(self.seq.width, self.seq.height));
+    }
+
+    /// The motion-compensated prediction of the most recent P-frame, once
+    /// [`Self::keep_predictions`] was called (else the buffer the reconstruction left there).
+    /// For an intra frame this is stale; diagnostics should use a flat frame there.
     pub fn prediction(&self) -> &Frame {
-        &self.pred
+        self.kept_pred.as_ref().unwrap_or(&self.pred)
     }
 
     /// The motion field of the most recent P-frame.
@@ -953,7 +970,10 @@ impl Encoder {
 
     /// Makes the contexts of every band written in this frame the carried ones; bands coded but
     /// then dropped keep their old state, as the decoder's do.
-    fn commit_band_contexts(&mut self) {
+    fn commit_band_contexts(&mut self, header: &FrameHeader) {
+        if self.trace.is_some() {
+            self.trace_frame(header);
+        }
         for (i, pending) in self.band_pending.iter_mut().enumerate() {
             if let Some((class, ctx)) = pending.take() {
                 if !self.segments[i].is_empty() {
@@ -969,6 +989,7 @@ impl Encoder {
         if self.band_contexts.is_empty() {
             return;
         }
+        self.trace_reset = true;
         let defaults = codec::default_contexts();
         for (slot, ctx) in self.slots.iter().zip(&self.band_contexts) {
             let mut g = ctx.lock().expect("band contexts");
@@ -1244,7 +1265,7 @@ impl Encoder {
                 });
             }
             self.write_bands(&header, &mut payload, &mut stats);
-            self.commit_band_contexts();
+            self.commit_band_contexts(&header);
             if let Some(segment) = loop_segment {
                 put_varint(&mut payload, segment.len() as u64);
                 payload.extend_from_slice(&segment);
@@ -1997,7 +2018,7 @@ impl Encoder {
             ..FrameStats::default()
         };
         self.write_bands(&header, &mut payload, &mut stats);
-        self.commit_band_contexts();
+        self.commit_band_contexts(&header);
         put_varint(out, payload.len() as u64);
         out.extend_from_slice(&payload);
         stats.bytes = out.len() - start;
@@ -2721,6 +2742,90 @@ impl Encoder {
         self.training.get_or_insert_with(ContextStats::default);
     }
 
+    /// Developer: from now on, keep every written band's symbols, positions and values for the
+    /// offline context simulator ([`crate::ctxsim`]). Costs a third coding pass.
+    pub fn trace_bands(&mut self) {
+        self.trace.get_or_insert_with(Vec::new);
+        self.motion_coder
+            .trace
+            .get_or_insert_with(crate::ctxsim::MotionTrace::default);
+    }
+
+    /// The frames traced since the last call (coding order).
+    pub fn take_band_trace(&mut self) -> Vec<crate::ctxsim::FrameTrace> {
+        self.trace.as_mut().map(std::mem::take).unwrap_or_default()
+    }
+
+    /// Traces the bands this frame writes (those with a pending context and a segment).
+    fn trace_frame(&mut self, header: &FrameHeader) {
+        let inter = header.frame_type.predicted();
+        let mut bands = Vec::new();
+        for (i, slot) in self.slots.iter().enumerate() {
+            if self.band_pending[i].is_none() || self.segments[i].is_empty() {
+                continue;
+            }
+            let plane = if slot.is_ll() && header.ll_prediction {
+                &self.comps[slot.comp].ll_res
+            } else {
+                &self.values[i]
+            };
+            let parent = slot
+                .parent
+                .filter(|_| header.parent_contexts)
+                .map(|p| Parent {
+                    values: &self.values[p],
+                    band: self.slots[p].local_rect(),
+                    sig: &self.pyramids[p],
+                });
+            let mut ctx = self.contexts[0].clone();
+            let mut tracer = Tracer::default();
+            let rect = slot.local_rect();
+            code_band(
+                &mut tracer,
+                &mut ctx,
+                plane,
+                rect,
+                parent,
+                Some(&self.pyramids[i]),
+                self.guides[i].as_ref(),
+                self.seq.block_log2,
+                slot.transposed(),
+            );
+            let mut values = Vec::with_capacity(rect.w * rect.h);
+            for y in 0..rect.h {
+                values.extend_from_slice(&plane.row(y)[..rect.w]);
+            }
+            bands.push(crate::ctxsim::BandTrace {
+                slot: i,
+                comp: slot.comp,
+                level: slot.sb.level,
+                orient: slot.sb.orient,
+                class: slot.class,
+                inter,
+                w: rect.w,
+                h: rect.h,
+                values,
+                symbols: tracer.symbols,
+                raw_bits: tracer.raw_bits,
+                bytes: self.segments[i].len(),
+            });
+        }
+        let reset = std::mem::replace(&mut self.trace_reset, false);
+        let motion = self
+            .motion_coder
+            .trace
+            .as_mut()
+            .map(std::mem::take)
+            .filter(|m| inter && !m.nodes.is_empty());
+        if let Some(t) = &mut self.trace {
+            t.push(crate::ctxsim::FrameTrace {
+                reset,
+                bands,
+                motion,
+            });
+        }
+    }
+
     /// The statistics counted since [`Self::record_contexts`], which stops counting.
     pub fn take_context_stats(&mut self) -> Option<ContextStats> {
         self.training.take()
@@ -3037,6 +3142,9 @@ impl Encoder {
     fn reconstruct(&mut self, header: &FrameHeader) {
         let inter = header.frame_type.predicted();
         if inter {
+            if let Some(kept) = &mut self.kept_pred {
+                kept.clone_from(&self.pred);
+            }
             // The prediction becomes the picture; the old reference is no longer needed.
             std::mem::swap(&mut self.recon, &mut self.pred);
         }

@@ -208,6 +208,8 @@ pub(crate) struct MotionCoder {
     prev_delta: Vec<[i32; 2]>,
     /// The carried state; reset at the start of the stream only when `continuous`.
     tree: TreeContexts,
+    /// Developer: while `Some`, every encoded section's tree symbols ([`crate::ctxsim`]).
+    pub(crate) trace: Option<crate::ctxsim::MotionTrace>,
 }
 
 /// Bit length: 0 for 0, else ⌊log2 m⌋ + 1.
@@ -322,7 +324,7 @@ impl MotionCoder {
         };
         let available = self.temporal && self.prev_delta.len() == grid.nodes();
         let modes = if self.temporal { 2 } else { 1 };
-        let mut best: Option<(Vec<u8>, MotionField, tree::TreeContexts)> = None;
+        let mut best: Option<(Vec<u8>, MotionField, tree::TreeContexts, bool)> = None;
         for mode in 0..modes {
             let use_temporal = mode == 1;
             if use_temporal && !available {
@@ -341,10 +343,29 @@ impl MotionCoder {
             tree::code_with(&mut enc, &mut ctx, &mut trial, &self.pred, temporal);
             let bytes = enc.finish();
             if best.as_ref().is_none_or(|b| bytes.len() < b.0.len()) {
-                best = Some((bytes, trial, ctx));
+                best = Some((bytes, trial, ctx, use_temporal));
             }
         }
-        let (bytes, trial, ctx) = best.expect("at least the spatial pass");
+        let (bytes, trial, ctx, use_temporal) = best.expect("at least the spatial pass");
+        if self.trace.is_some() {
+            let mut ctx = base.clone();
+            let mut tracer = tree::MotionTracer::new(&ctx);
+            let temporal = use_temporal.then_some(self.prev_delta.as_slice());
+            tree::code_with(&mut tracer, &mut ctx, &mut field.clone(), &self.pred, temporal);
+            let nodes = (0..grid.nodes())
+                .map(|n| {
+                    let d = [trial.mv[n][0] - self.pred[n][0], trial.mv[n][1] - self.pred[n][1]];
+                    (d, trial.intra[n], trial.depth[n])
+                })
+                .collect();
+            self.trace = Some(crate::ctxsim::MotionTrace {
+                nx: grid.nx,
+                ny: grid.ny,
+                symbols: tracer.symbols,
+                nodes,
+                bytes: bytes.len(),
+            });
+        }
         *field = trial;
         if self.continuous {
             self.tree = ctx;

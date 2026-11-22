@@ -221,6 +221,7 @@ fn quad<C: SymbolCoder>(
     if i0 >= st.nx || j0 >= st.ny {
         return;
     }
+    coder.at(i0, j0, level);
     let size = 1usize << level;
     let left = st.coded_at(i0.checked_sub(1), Some(j0));
     let up = st.coded_at(Some(i0), j0.checked_sub(1));
@@ -324,6 +325,88 @@ fn quad<C: SymbolCoder>(
             field.depth[n] = level as u8;
         }
     }
+}
+
+/// One traced motion symbol (see [`MotionTracer`]).
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct MotionSymbol {
+    /// 0 split, 1 mode, 2 difference class.
+    pub kind: u8,
+    /// The CDF's index within its kind's array.
+    pub ctx: u8,
+    pub s: u8,
+    /// The leaf or region's top-left node and its size log2.
+    pub i: u16,
+    pub j: u16,
+    pub level: u8,
+    /// Raw bits after a class symbol (mantissa below the leading 1, then the sign) and their
+    /// count.
+    pub raw: u32,
+    pub raw_n: u8,
+}
+
+/// Developer: logs the node quadtree's symbols for the context simulator (`crate::ctxsim`).
+pub(crate) struct MotionTracer {
+    pub symbols: Vec<MotionSymbol>,
+    ranges: [(usize, usize); 3],
+    at: (u16, u16, u8),
+}
+
+impl MotionTracer {
+    /// A tracer for symbols coded with `ctx`.
+    pub fn new(ctx: &TreeContexts) -> Self {
+        let range = |a: &[Cdf]| (a.as_ptr() as usize, a.len());
+        Self {
+            symbols: Vec::new(),
+            ranges: [range(&ctx.split), range(&ctx.mode), range(&ctx.class)],
+            at: (0, 0, 0),
+        }
+    }
+}
+
+impl SymbolCoder for MotionTracer {
+    const ENCODER: bool = true;
+
+    fn symbol(&mut self, cdf: &mut Cdf, s: &mut usize) {
+        let p = cdf as *const Cdf as usize;
+        let (kind, ctx) = self
+            .ranges
+            .iter()
+            .enumerate()
+            .find_map(|(k, &(base, n))| {
+                let i = p.wrapping_sub(base) / std::mem::size_of::<Cdf>();
+                (p >= base && i < n).then_some((k, i))
+            })
+            .expect("tree symbols use tree contexts");
+        let (i, j, level) = self.at;
+        self.symbols.push(MotionSymbol {
+            kind: kind as u8,
+            ctx: ctx as u8,
+            s: *s as u8,
+            i,
+            j,
+            level,
+            raw: 0,
+            raw_n: 0,
+        });
+    }
+
+    fn bits(&mut self, count: u32, v: &mut u32) {
+        if let Some(last) = self.symbols.last_mut() {
+            last.raw = *v;
+            last.raw_n = count as u8;
+        }
+    }
+
+    fn at(&mut self, x: usize, y: usize, j: u32) {
+        self.at = (x as u16, y as u16, j as u8);
+    }
+}
+
+/// The default state of every motion CDF, by kind (split, mode, class) and index.
+pub(crate) fn default_cdfs() -> [Vec<Cdf>; 3] {
+    let d = TreeContexts::default();
+    [d.split.to_vec(), d.mode.to_vec(), d.class.to_vec()]
 }
 
 fn median(a: i32, b: i32, c: i32) -> i32 {

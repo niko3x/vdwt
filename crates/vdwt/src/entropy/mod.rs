@@ -8,7 +8,7 @@ mod range;
 pub(crate) mod trained;
 
 pub(crate) use band::{
-    CDFS, CoeffBand, Contexts, Guide, Parent, Recorder, Rect, SigPyramid, SymbolCoder, TrackedRows,
+    CDFS, CoeffBand, Contexts, Guide, Parent, Recorder, Rect, SigPyramid, SymbolCoder, TracedSymbol, Tracer, TrackedRows,
     code_band,
 };
 pub use cdf::{Cdf, MAX_SYMBOLS, MIN_PROB, PROB_BITS, PROB_ONE};

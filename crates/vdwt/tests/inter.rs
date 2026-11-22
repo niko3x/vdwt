@@ -698,3 +698,33 @@ fn auto_postfilter_decode_matches_the_filtered_recon() {
         }
     }
 }
+
+#[test]
+fn context_simulator_baseline_matches_the_coded_sizes() {
+    let (w, h) = (160, 96);
+    let frames = clip(w, h, 12, None);
+    let mut cfg = EncoderConfig::new(w, h);
+    cfg.qp = 40;
+    let mut encoder = Encoder::new(cfg).unwrap();
+    encoder.trace_bands();
+    let mut sim = vdwt::ctxsim::Simulator::new(
+        vdwt::ctxsim::candidates(),
+        vdwt::ctxsim::motion_candidates(),
+    );
+    let mut out = Vec::new();
+    for f in &frames {
+        out.clear();
+        encoder.encode_frame(f, &mut out).unwrap();
+        for t in encoder.take_band_trace() {
+            sim.add(t);
+        }
+    }
+    let (bands, segments, motion, sections) = sim.baseline();
+    assert!(segments > 1000 && sections > 0, "{segments} {sections}");
+    // The range coder adds a few bytes per segment; the model is exact otherwise.
+    let ratio = bands / segments as f64;
+    assert!((0.95..=1.0).contains(&ratio), "bands {bands} against {segments}");
+    // Sections also hold the global model and a selector bit, which the tree trace omits.
+    assert!(motion <= sections as f64 && motion > 0.5 * sections as f64, "{motion} {sections}");
+}
+

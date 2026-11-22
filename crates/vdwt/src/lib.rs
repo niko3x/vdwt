@@ -21,6 +21,7 @@ pub mod bframe;
 pub mod bitstream;
 mod codec;
 pub mod cpu;
+pub mod ctxsim;
 pub mod decoder;
 pub mod dwt;
 pub mod encoder;

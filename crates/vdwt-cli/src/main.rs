@@ -61,6 +61,10 @@ COMMANDS:
                    [CODEC OPTIONS]
         Developer: trains the coder's default context tables on clips (P-frame runs, and the
         first frames intra-only) and writes them as crates/vdwt/src/entropy/trained.rs.
+    ctx-sim IN.y4m... [--qp 40 | --bitrate RATE] [--frames 60] [--only a,b] [CODEC OPTIONS]
+        Developer: prices band-coder context changes offline. Replays every written band's
+        symbols through exact adaptive CDFs carried as the encoder carries them, once as coded
+        and once per candidate refinement, and reports each candidate's saving.
     rt-encode IN.y4m OUT.vdrt --bitrate RATE[@FRAME],... [--max-delay 1.5] [--frames N]
               [--tile-roots 0 (auto)] [--refresh 30] [--mtu 1200] [--recon R.y4m]
               [--loop-filter] [--mesh-search] [--global-only]
@@ -183,6 +187,7 @@ fn main() -> ExitCode {
         "band-stats" => band_stats(args),
         "pred-dump" => pred_dump(args),
         "train-contexts" => train_contexts(args),
+        "ctx-sim" => ctx_sim(args),
         "info" => info(args),
         "selftest" => selftest(args),
         "bench" => bench(args),
@@ -1732,6 +1737,78 @@ fn train_contexts(mut args: Args) -> Result<(), String> {
     Ok(())
 }
 
+fn ctx_sim(mut args: Args) -> Result<(), String> {
+    let qp = args.get("qp", 40u8)?;
+    let schedule = args
+        .string("bitrate")
+        .map(|s| parse_schedule(&s))
+        .transpose()?;
+    let max_frames = args.get("frames", 60usize)?;
+    let only = args.string("only");
+    let opts = CodecOptions::parse(&mut args)?;
+    if args.positional.is_empty() {
+        return Err("expected at least one clip".into());
+    }
+    let clips = std::mem::take(&mut args.positional);
+    args.finish(0)?;
+    let mut candidates = vdwt::ctxsim::candidates();
+    let mut motion = vdwt::ctxsim::motion_candidates();
+    if let Some(only) = &only {
+        let names: Vec<&str> = only.split(',').collect();
+        candidates.retain(|c| names.contains(&c.name));
+        motion.retain(|c| names.contains(&c.name));
+    }
+    for c in &candidates {
+        println!("{:22}{}", c.name, c.about);
+    }
+    for c in &motion {
+        println!("{:22}{}", c.name, c.about);
+    }
+    let mut total = vdwt::ctxsim::Simulator::new(candidates, motion);
+    let mut stream_bytes = 0u64;
+    for clip in &clips {
+        let (info, frames) = read_frames(clip, max_frames)?;
+        let rate_control = schedule.as_ref().map(|schedule| {
+            let mut rc = RateControl::new(schedule[0].1);
+            rc.max_delay_frames = if opts.adaptive {
+                1.5 * MAX_GROUP as f64
+            } else {
+                1.5
+            };
+            rc
+        });
+        let fixed_qp = rate_control.is_none();
+        let mut cfg = opts.config_for(&info, qp, &frames, rate_control)?;
+        cfg.short_headers = fixed_qp;
+        let mut encoder = Encoder::new(cfg).map_err(|e| e.to_string())?;
+        encoder.trace_bands();
+        let mut next = 0;
+        let mut packet = Vec::new();
+        while next < frames.len() {
+            let group = group_size(opts.adaptive, fixed_qp, next, frames.len());
+            packet.clear();
+            if opts.adaptive {
+                let refs: Vec<&Frame> = frames[next..next + group].iter().collect();
+                encoder
+                    .encode_pair(&refs, &mut packet)
+                    .map_err(|e| e.to_string())?;
+            } else {
+                encoder
+                    .encode_frame(&frames[next], &mut packet)
+                    .map_err(|e| e.to_string())?;
+            }
+            stream_bytes += packet.len() as u64;
+            for frame in encoder.take_band_trace() {
+                total.add(frame);
+            }
+            next += group;
+        }
+        println!("{clip}: {} frames", frames.len());
+    }
+    print!("{}", total.report(stream_bytes));
+    Ok(())
+}
+
 fn rd(mut args: Args) -> Result<(), String> {
     let qps: Vec<u8> = args
         .string("qp")
@@ -1855,6 +1932,7 @@ fn pred_dump(mut args: Args) -> Result<(), String> {
     let (info, frames) = read_frames(input, max_frames)?;
     let cfg = opts.config_for(&info, qp, &frames, None)?;
     let mut encoder = Encoder::new(cfg).map_err(|e| e.to_string())?;
+    encoder.keep_predictions();
     let mut writer =
         Y4mWriter::create(Path::new(output), &info).map_err(|e| format!("{output}: {e}"))?;
     let mut sink = Vec::new();
